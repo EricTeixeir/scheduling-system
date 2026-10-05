@@ -1,0 +1,82 @@
+// Constraints Prisma cannot express (exclusion constraint, CHECKs) live in the
+// hand-written part of the initial migration. See migrations/*_init/migration.sql.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/infra/db/generated"
+  moduleFormat        = "esm"
+  // Explicit .js specifiers keep the generated code loadable by plain Node ESM after compilation.
+  importFileExtension = "js"
+}
+
+// The connection URL comes from prisma.config.ts (CLI) and the pg adapter (runtime).
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CLIENT
+  ADMIN
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+model User {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String        @db.VarChar(100)
+  // Lowercased by the application and enforced by the users_email_lowercase CHECK,
+  // so the unique index is case-insensitive in practice.
+  email        String        @unique @db.VarChar(254)
+  passwordHash String        @map("password_hash") @db.Text
+  role         Role          @default(CLIENT)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  appointments Appointment[]
+
+  @@map("users")
+}
+
+model Appointment {
+  id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  // Half-open interval [startsAt, endsAt): adjacent slots do not overlap.
+  startsAt  DateTime          @map("starts_at") @db.Timestamptz(3)
+  endsAt    DateTime          @map("ends_at") @db.Timestamptz(3)
+  status    AppointmentStatus @default(PENDING)
+  notes     String?           @db.VarChar(500)
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, startsAt])
+  @@index([status, startsAt])
+  @@map("appointments")
+}
+
+// Business hours for one weekday. opensAt/closesAt are LOCAL wall-clock times in
+// the business timezone (BUSINESS_TIMEZONE, default America/Sao_Paulo), not UTC.
+// A weekday without a row is closed.
+model AvailabilityRule {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  // 0 = Sunday ... 6 = Saturday, same numbering as JavaScript Date#getDay.
+  weekday     Int      @unique @db.SmallInt
+  opensAt     DateTime @map("opens_at") @db.Time(0)
+  closesAt    DateTime @map("closes_at") @db.Time(0)
+  slotMinutes Int      @map("slot_minutes")
+
+  @@map("availability_rules")
+}
+
+// A calendar date (in the business timezone) with no availability, e.g. a holiday.
+model ClosedDate {
+  date   DateTime @id @db.Date
+  reason String   @db.VarChar(200)
+
+  @@map("closed_dates")
+}

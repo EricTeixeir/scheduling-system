@@ -21,3 +21,6 @@ Thumbs.db
 
 # Editors
 .idea/
+
+# Generated Prisma Client (rebuilt by `npm install` / `npm run db:generate -w @scheduling/api`)
+apps/api/src/infra/db/generated/
