@@ -23,6 +23,12 @@ export default defineConfig({
           branches: 80,
           statements: 80,
         },
+        'packages/shared/src/**': {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
+        },
         // 'apps/api/src/services/**': same floors, added with the service layer.
       },
     },
