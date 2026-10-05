@@ -7,7 +7,13 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  globalIgnores(['**/dist/', '**/coverage/', '**/node_modules/']),
+  globalIgnores([
+    '**/dist/',
+    '**/coverage/',
+    '**/node_modules/',
+    // Generated Prisma Client.
+    'apps/api/src/infra/db/generated/',
+  ]),
 
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,

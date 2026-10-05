@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:18.6-alpine3.24
+    restart: unless-stopped
+    # No `ports:` on purpose: the database is reachable only inside the compose network.
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-scheduling}
+      # Dev-only fallback; set a real secret in .env outside local development.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_only_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-scheduling}
+    volumes:
+      # PostgreSQL 18 images keep data under a versioned subfolder of this path.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    # Hardening: immutable root filesystem and only the capabilities the
+    # entrypoint needs to fix data-dir ownership and drop to the postgres user.
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/run/postgresql
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+
+volumes:
+  db-data:
