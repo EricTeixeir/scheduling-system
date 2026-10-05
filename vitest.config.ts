@@ -13,7 +13,18 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['apps/*/src/**', 'packages/*/src/**'],
-      exclude: ['**/src/test/**'],
+      // Test helpers and generated Prisma Client are not our production code.
+      exclude: ['**/src/test/**', 'apps/api/src/infra/db/generated/**'],
+      // Per-glob gates: the run fails when a covered area drops below its floor.
+      thresholds: {
+        'apps/api/src/domain/**': {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
+        },
+        // 'apps/api/src/services/**': same floors, added with the service layer.
+      },
     },
   },
 });
