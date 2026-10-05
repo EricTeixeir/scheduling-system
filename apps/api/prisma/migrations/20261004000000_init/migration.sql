@@ -7,7 +7,7 @@ CREATE SCHEMA IF NOT EXISTS "public";
 CREATE TYPE "Role" AS ENUM ('CLIENT', 'ADMIN');
 
 -- CreateEnum
-CREATE TYPE "AppointmentStatus" AS ENUM ('PENDING', 'CONFIRMED', 'REJECTED', 'CANCELLED', 'COMPLETED');
+CREATE TYPE "AppointmentStatus" AS ENUM ('CONFIRMED', 'CANCELLED', 'COMPLETED', 'NO_SHOW');
 
 -- CreateTable
 CREATE TABLE "users" (
@@ -28,7 +28,7 @@ CREATE TABLE "appointments" (
     "user_id" UUID NOT NULL,
     "starts_at" TIMESTAMPTZ(3) NOT NULL,
     "ends_at" TIMESTAMPTZ(3) NOT NULL,
-    "status" "AppointmentStatus" NOT NULL DEFAULT 'PENDING',
+    "status" "AppointmentStatus" NOT NULL DEFAULT 'CONFIRMED',
     "notes" VARCHAR(500),
     "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(3) NOT NULL,
@@ -85,8 +85,9 @@ ALTER TABLE appointments
 
 -- Guarantees no double booking even under concurrent inserts. tstzrange uses
 -- '[)' bounds, so back-to-back slots (09:00-09:30, 09:30-10:00) are allowed.
--- Cancelled and rejected appointments free their slot.
-ALTER TABLE appointments ADD CONSTRAINT no_overlap EXCLUDE USING gist (tstzrange(starts_at, ends_at) WITH &&) WHERE (status NOT IN ('CANCELLED', 'REJECTED'));
+-- Only CANCELLED frees the slot: COMPLETED and NO_SHOW are historical facts
+-- that keep it occupied.
+ALTER TABLE appointments ADD CONSTRAINT no_overlap EXCLUDE USING gist (tstzrange(starts_at, ends_at) WITH &&) WHERE (status <> 'CANCELLED');
 
 -- 0 = Sunday ... 6 = Saturday (JavaScript Date#getDay numbering).
 ALTER TABLE availability_rules

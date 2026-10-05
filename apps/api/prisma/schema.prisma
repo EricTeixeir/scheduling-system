@@ -19,12 +19,13 @@ enum Role {
   ADMIN
 }
 
+// Appointments are confirmed on creation (no approval step). CANCELLED frees the
+// slot; COMPLETED and NO_SHOW are historical facts and keep it occupied.
 enum AppointmentStatus {
-  PENDING
   CONFIRMED
-  REJECTED
   CANCELLED
   COMPLETED
+  NO_SHOW
 }
 
 model User {
@@ -48,7 +49,7 @@ model Appointment {
   // Half-open interval [startsAt, endsAt): adjacent slots do not overlap.
   startsAt  DateTime          @map("starts_at") @db.Timestamptz(3)
   endsAt    DateTime          @map("ends_at") @db.Timestamptz(3)
-  status    AppointmentStatus @default(PENDING)
+  status    AppointmentStatus @default(CONFIRMED)
   notes     String?           @db.VarChar(500)
   createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
