@@ -58,11 +58,8 @@ export function weekdayOf(date: LocalDate): number {
 
 /**
  * The UTC instant at which a wall clock in `timeZone` shows `minuteOfDay` on `date`.
- * DST follows the "compatible" rule (as Temporal and RFC 5545):
- * - a nonexistent time (spring-forward gap) moves forward by the gap length,
- *   e.g. 02:30 on 2026-03-08 in New York becomes 03:30 EDT;
- * - an ambiguous time (fall-back overlap) resolves to the earlier occurrence,
- *   e.g. 01:30 on 2026-11-01 in New York is 01:30 EDT, not EST.
+ * The offset comes from the IANA time zone database (never hard-coded), so a
+ * change in the zone's rules is picked up by updating the runtime's tz data.
  */
 export function zonedInstant(date: LocalDate, minuteOfDay: number, timeZone: string): Date {
   assertValidTimeZone(timeZone);

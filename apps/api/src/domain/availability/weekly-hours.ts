@@ -48,10 +48,8 @@ export function assertValidWeeklyHours(hours: WeeklyHours): void {
 }
 
 /**
- * Resolves `hours` on a concrete `date` in `timeZone`. Opening and closing are
- * converted with zonedInstant (DST rule documented there), so on a DST day the
- * real length differs from the wall-clock one: 00:00-04:00 in New York lasts
- * 3 h on 2026-03-08 and 5 h on 2026-11-01. Throws (programmer error) when
+ * Resolves `hours` on a concrete `date` in `timeZone`, converting opening and
+ * closing to UTC instants with zonedInstant. Throws (programmer error) when
  * `hours` is invalid or belongs to another weekday than `date`.
  */
 export function businessDayOf(date: LocalDate, hours: WeeklyHours, timeZone: string): BusinessDay {
@@ -73,10 +71,9 @@ export function businessDayOf(date: LocalDate, hours: WeeklyHours, timeZone: str
 }
 
 /**
- * The slot grid of a business day, ascending. Slots step by slotMinutes of
- * ELAPSED time from the opening instant, so every slot lasts exactly
- * slotMinutes even across a DST change, and a slot must end by closing time:
- * a trailing partial slot is not offered.
+ * The slot grid of a business day, ascending. Slots step by slotMinutes from
+ * the opening instant, and a slot must end by closing time: a trailing partial
+ * slot is not offered.
  */
 export function slotsOf(day: BusinessDay): TimeRange[] {
   const slots: TimeRange[] = [];

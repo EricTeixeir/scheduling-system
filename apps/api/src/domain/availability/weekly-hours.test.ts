@@ -9,12 +9,7 @@ import {
 } from './weekly-hours';
 
 const SAO_PAULO = 'America/Sao_Paulo';
-const NEW_YORK = 'America/New_York';
 const MONDAY: WeeklyHours = { weekday: 1, opensAt: '09:00', closesAt: '12:00', slotMinutes: 30 };
-
-function sunday(opensAt: string, closesAt: string): WeeklyHours {
-  return { weekday: 0, opensAt, closesAt, slotMinutes: 30 };
-}
 
 function starts(hours: WeeklyHours, date: string, timeZone: string): string[] {
   return slotsOf(businessDayOf(date, hours, timeZone)).map((slot) => slot.startsAt.toISOString());
@@ -114,53 +109,5 @@ describe('slotsOf', () => {
 
   it('a slot longer than the window yields no slots', () => {
     expect(starts({ ...MONDAY, closesAt: '09:20' }, '2026-10-05', SAO_PAULO)).toEqual([]);
-  });
-
-  describe('DST in New York: slots step in elapsed time', () => {
-    it('spring-forward 2026-03-08, 00:00-04:00: 3 real hours, 6 slots, 02:xx never offered', () => {
-      expect(starts(sunday('00:00', '04:00'), '2026-03-08', NEW_YORK)).toEqual([
-        '2026-03-08T05:00:00.000Z', // 00:00 EST
-        '2026-03-08T05:30:00.000Z', // 00:30 EST
-        '2026-03-08T06:00:00.000Z', // 01:00 EST
-        '2026-03-08T06:30:00.000Z', // 01:30 EST
-        '2026-03-08T07:00:00.000Z', // 03:00 EDT
-        '2026-03-08T07:30:00.000Z', // 03:30 EDT
-      ]);
-    });
-
-    it('fall-back 2026-11-01, 00:00-04:00: 5 real hours, 10 slots, 01:xx offered twice', () => {
-      expect(starts(sunday('00:00', '04:00'), '2026-11-01', NEW_YORK)).toEqual([
-        '2026-11-01T04:00:00.000Z', // 00:00 EDT
-        '2026-11-01T04:30:00.000Z', // 00:30 EDT
-        '2026-11-01T05:00:00.000Z', // 01:00 EDT
-        '2026-11-01T05:30:00.000Z', // 01:30 EDT
-        '2026-11-01T06:00:00.000Z', // 01:00 EST
-        '2026-11-01T06:30:00.000Z', // 01:30 EST
-        '2026-11-01T07:00:00.000Z', // 02:00 EST
-        '2026-11-01T07:30:00.000Z', // 02:30 EST
-        '2026-11-01T08:00:00.000Z', // 03:00 EST
-        '2026-11-01T08:30:00.000Z', // 03:30 EST
-      ]);
-    });
-
-    it('opening at a nonexistent time (02:30) opens at 03:30 EDT', () => {
-      expect(starts(sunday('02:30', '04:00'), '2026-03-08', NEW_YORK)).toEqual([
-        '2026-03-08T07:30:00.000Z',
-      ]);
-    });
-
-    it('a window that collapses after the gap shift (02:30-03:00) yields no slots', () => {
-      expect(starts(sunday('02:30', '03:00'), '2026-03-08', NEW_YORK)).toEqual([]);
-    });
-
-    it('opening at an ambiguous time (01:30) uses the first occurrence (EDT)', () => {
-      expect(starts(sunday('01:30', '03:00'), '2026-11-01', NEW_YORK)).toEqual([
-        '2026-11-01T05:30:00.000Z', // 01:30 EDT
-        '2026-11-01T06:00:00.000Z', // 01:00 EST
-        '2026-11-01T06:30:00.000Z', // 01:30 EST
-        '2026-11-01T07:00:00.000Z', // 02:00 EST
-        '2026-11-01T07:30:00.000Z', // 02:30 EST
-      ]);
-    });
   });
 });

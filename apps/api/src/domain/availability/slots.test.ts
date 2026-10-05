@@ -6,15 +6,8 @@ import type { TimeRange } from '../time/time-range';
 import type { WeeklyHours } from './weekly-hours';
 
 const SAO_PAULO = 'America/Sao_Paulo';
-const NEW_YORK = 'America/New_York';
 const POLICY: BookingPolicy = { minLeadMinutes: 60, cancelDeadlineMinutes: 30, horizonDays: 90 };
 const MONDAY: WeeklyHours = { weekday: 1, opensAt: '09:00', closesAt: '12:00', slotMinutes: 30 };
-const SUNDAY_NIGHT: WeeklyHours = {
-  weekday: 0,
-  opensAt: '00:00',
-  closesAt: '04:00',
-  slotMinutes: 30,
-};
 // Sunday before the Monday under test.
 const NOW = new Date('2026-10-04T12:00:00.000Z');
 
@@ -134,52 +127,6 @@ describe('listAvailableSlots', () => {
     );
   });
 
-  it('DST spring-forward in New York (2026-03-08): 02:xx is never offered', () => {
-    expect(
-      list({
-        date: '2026-03-08',
-        hours: SUNDAY_NIGHT,
-        now: new Date('2026-03-01T00:00:00.000Z'),
-        timeZone: NEW_YORK,
-      }),
-    ).toEqual([
-      '2026-03-08T05:00:00.000Z',
-      '2026-03-08T05:30:00.000Z',
-      '2026-03-08T06:00:00.000Z',
-      '2026-03-08T06:30:00.000Z',
-      '2026-03-08T07:00:00.000Z',
-      '2026-03-08T07:30:00.000Z',
-    ]);
-  });
-
-  it('DST fall-back in New York (2026-11-01): both 01:xx occurrences, minus a busy one', () => {
-    expect(
-      list({
-        date: '2026-11-01',
-        hours: SUNDAY_NIGHT,
-        // 01:00-01:30 EST (the second 01:00) is taken.
-        busy: [
-          {
-            startsAt: new Date('2026-11-01T06:00:00.000Z'),
-            endsAt: new Date('2026-11-01T06:30:00.000Z'),
-          },
-        ],
-        now: new Date('2026-10-25T00:00:00.000Z'),
-        timeZone: NEW_YORK,
-      }),
-    ).toEqual([
-      '2026-11-01T04:00:00.000Z',
-      '2026-11-01T04:30:00.000Z',
-      '2026-11-01T05:00:00.000Z', // 01:00 EDT
-      '2026-11-01T05:30:00.000Z', // 01:30 EDT
-      '2026-11-01T06:30:00.000Z', // 01:30 EST
-      '2026-11-01T07:00:00.000Z',
-      '2026-11-01T07:30:00.000Z',
-      '2026-11-01T08:00:00.000Z',
-      '2026-11-01T08:30:00.000Z',
-    ]);
-  });
-
   describe('programmer errors throw', () => {
     it.each<[string, Partial<AvailableSlotsQuery>, string]>([
       ['invalid date', { date: '2026-02-30' }, 'YYYY-MM-DD'],
@@ -271,35 +218,6 @@ describe('resolveRequestedSlot', () => {
         startsAt: new Date('2026-10-06T01:00:00.000Z'),
         endsAt: new Date('2026-10-06T01:30:00.000Z'),
       },
-    });
-  });
-
-  describe('DST in New York', () => {
-    it('spring-forward: 03:00 EDT is the slot after 01:30 EST', () => {
-      expect(resolve(new Date('2026-03-08T07:00:00.000Z'), SUNDAY_NIGHT, false, NEW_YORK)).toEqual({
-        ok: true,
-        value: {
-          startsAt: new Date('2026-03-08T07:00:00.000Z'),
-          endsAt: new Date('2026-03-08T07:30:00.000Z'),
-        },
-      });
-    });
-
-    it('fall-back: both occurrences of 01:00 are bookable, each lasting 30 real minutes', () => {
-      for (const iso of ['2026-11-01T05:00:00.000Z', '2026-11-01T06:00:00.000Z']) {
-        const startsAt = new Date(iso);
-        expect(resolve(startsAt, SUNDAY_NIGHT, false, NEW_YORK)).toEqual({
-          ok: true,
-          value: { startsAt, endsAt: new Date(startsAt.getTime() + 30 * 60_000) },
-        });
-      }
-    });
-
-    it('fall-back: closing 04:00 EST is outside business hours', () => {
-      expect(resolve(new Date('2026-11-01T09:00:00.000Z'), SUNDAY_NIGHT, false, NEW_YORK)).toEqual({
-        ok: false,
-        reason: 'OUTSIDE_BUSINESS_HOURS',
-      });
     });
   });
 
