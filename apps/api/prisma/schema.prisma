@@ -63,9 +63,9 @@ model Appointment {
 // the business timezone (BUSINESS_TIMEZONE, default America/Sao_Paulo), not UTC.
 // A weekday without a row is closed.
 model AvailabilityRule {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  // Natural key: one rule per weekday. Never exposed by id to clients, so no UUID.
   // 0 = Sunday ... 6 = Saturday, same numbering as JavaScript Date#getDay.
-  weekday     Int      @unique @db.SmallInt
+  weekday     Int      @id @db.SmallInt
   opensAt     DateTime @map("opens_at") @db.Time(0)
   closesAt    DateTime @map("closes_at") @db.Time(0)
   slotMinutes Int      @map("slot_minutes")

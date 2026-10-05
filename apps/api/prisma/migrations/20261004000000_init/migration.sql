@@ -38,13 +38,12 @@ CREATE TABLE "appointments" (
 
 -- CreateTable
 CREATE TABLE "availability_rules" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "weekday" SMALLINT NOT NULL,
     "opens_at" TIME(0) NOT NULL,
     "closes_at" TIME(0) NOT NULL,
     "slot_minutes" INTEGER NOT NULL,
 
-    CONSTRAINT "availability_rules_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "availability_rules_pkey" PRIMARY KEY ("weekday")
 );
 
 -- CreateTable
@@ -63,9 +62,6 @@ CREATE INDEX "appointments_user_id_starts_at_idx" ON "appointments"("user_id", "
 
 -- CreateIndex
 CREATE INDEX "appointments_status_starts_at_idx" ON "appointments"("status", "starts_at");
-
--- CreateIndex
-CREATE UNIQUE INDEX "availability_rules_weekday_key" ON "availability_rules"("weekday");
 
 -- AddForeignKey
 ALTER TABLE "appointments" ADD CONSTRAINT "appointments_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
