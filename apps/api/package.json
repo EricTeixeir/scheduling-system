@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "postinstall": "prisma generate",
+    "dev": "tsx watch --env-file-if-exists=../../.env src/server.ts",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
     "db:generate": "prisma generate",
@@ -13,11 +14,17 @@
   },
   "dependencies": {
     "@date-fns/tz": "1.5.0",
+    "@fastify/cors": "11.3.0",
+    "@fastify/helmet": "13.1.1",
+    "@fastify/rate-limit": "11.2.0",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "@scheduling/shared": "0.1.0",
     "date-fns": "4.4.0",
-    "pg": "8.23.1"
+    "fastify": "5.12.5",
+    "pg": "8.23.1",
+    "pino": "10.4.0",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/pg": "8.23.1",
