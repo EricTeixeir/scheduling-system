@@ -13,11 +13,18 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['apps/*/src/**', 'packages/*/src/**'],
-      // Test helpers and generated Prisma Client are not our production code.
-      exclude: ['**/src/test/**', 'apps/api/src/infra/db/generated/**'],
+      // Test helpers and generated Prisma Client are not our production code. server.ts is the
+      // process bootstrap (listen, signals, exit) and is exercised by running the API, not by tests.
+      exclude: ['**/src/test/**', 'apps/api/src/infra/db/generated/**', 'apps/api/src/server.ts'],
       // Per-glob gates: the run fails when a covered area drops below its floor.
       thresholds: {
         'apps/api/src/domain/**': {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
+        },
+        'apps/api/src/{app.ts,{config,errors,http,infra/db,logging,routes}/**}': {
           lines: 80,
           functions: 80,
           branches: 80,
