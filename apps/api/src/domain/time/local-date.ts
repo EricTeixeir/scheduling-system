@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 
 import { assertValidInstant } from './instant';
 
-/** A calendar date in the business time zone, formatted 'YYYY-MM-DD'. */
+// 'YYYY-MM-DD' in the business time zone.
 export type LocalDate = string;
 
 const LOCAL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -14,7 +14,6 @@ interface DateParts {
   readonly day: number;
 }
 
-/** Throws (programmer error) unless `timeZone` is an IANA name the runtime knows. */
 export function assertValidTimeZone(timeZone: string): void {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone });
@@ -23,11 +22,11 @@ export function assertValidTimeZone(timeZone: string): void {
   }
 }
 
-/** Parses a LocalDate, throwing (programmer error) on bad format or a date that does not exist (e.g. 2026-02-30). */
 export function parseLocalDate(date: LocalDate): DateParts {
   const match = LOCAL_DATE_PATTERN.exec(date);
   const parts = match && { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
   if (parts) {
+    // Date.UTC silently rolls 2026-02-30 over to March; reading it back rejects such dates.
     const probe = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
     const exists =
       probe.getUTCFullYear() === parts.year &&
@@ -40,27 +39,18 @@ export function parseLocalDate(date: LocalDate): DateParts {
   );
 }
 
-/** The calendar date `instant` falls on, as seen on a wall clock in `timeZone`. */
 export function localDateOf(instant: Date, timeZone: string): LocalDate {
   assertValidInstant(instant, 'instant');
   assertValidTimeZone(timeZone);
   return format(new TZDate(instant.getTime(), timeZone), 'yyyy-MM-dd');
 }
 
-/**
- * Day of the week of a calendar date: 0 = Sunday ... 6 = Saturday (Date#getDay).
- * No time zone needed: a calendar date has the same weekday everywhere.
- */
+// 0 = Sunday ... 6 = Saturday. No time zone: a calendar date has the same weekday everywhere.
 export function weekdayOf(date: LocalDate): number {
   const { year, month, day } = parseLocalDate(date);
   return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
 }
 
-/**
- * The UTC instant at which a wall clock in `timeZone` shows `minuteOfDay` on `date`.
- * The offset comes from the IANA time zone database (never hard-coded), so a
- * change in the zone's rules is picked up by updating the runtime's tz data.
- */
 export function zonedInstant(date: LocalDate, minuteOfDay: number, timeZone: string): Date {
   assertValidTimeZone(timeZone);
   const { year, month, day } = parseLocalDate(date);

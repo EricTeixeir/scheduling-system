@@ -1,13 +1,9 @@
 import { ok, fail, type Result } from '../result';
 import { addMinutes, assertValidInstant } from '../time/instant';
 
-/** Time rules for booking and client cancellation. All values are elapsed time, not calendar time. */
 export interface BookingPolicy {
-  /** A slot must start at least this many minutes after now. */
   readonly minLeadMinutes: number;
-  /** A client may cancel up to this many minutes before the start. */
   readonly cancelDeadlineMinutes: number;
-  /** A slot may start at most this many days (of 24 h) after now. */
   readonly horizonDays: number;
 }
 
@@ -26,11 +22,6 @@ const MINUTES_PER_DAY = 24 * 60;
 export type BookingWindowRefusal = 'IN_PAST' | 'TOO_SOON' | 'TOO_FAR';
 export type ClientCancellationRefusal = 'CANCEL_DEADLINE_PASSED';
 
-/**
- * Throws (programmer error) unless every policy value is a non-negative
- * integer and the horizon is at least one day. Env parsing validates first;
- * this guards the domain against a policy built by hand.
- */
 export function assertValidPolicy(policy: BookingPolicy): void {
   const fields = [
     ['minLeadMinutes', policy.minLeadMinutes, 0],
@@ -46,15 +37,7 @@ export function assertValidPolicy(policy: BookingPolicy): void {
   }
 }
 
-/**
- * Whether a slot starting at `startsAt` may be booked at `now`.
- * Boundaries (inclusive means allowed):
- * - IN_PAST:  startsAt <= now (a slot starting exactly now is already past);
- * - TOO_SOON: startsAt <  now + minLead (exactly now + minLead is allowed);
- * - TOO_FAR:  startsAt >  now + horizonDays * 24 h (exactly at the horizon is allowed).
- * Checked in that order, so the most fundamental reason wins.
- * Throws on invalid dates or policy (programmer error).
- */
+// A slot starting exactly now is already past; exactly at now + minLead or at the horizon is allowed.
 export function checkBookingWindow(
   startsAt: Date,
   now: Date,
@@ -73,12 +56,6 @@ export function checkBookingWindow(
   return ok(undefined);
 }
 
-/**
- * Whether a CLIENT may still cancel an appointment starting at `startsAt`.
- * The deadline instant is startsAt - cancelDeadline and is itself allowed:
- * refused only when now > startsAt - cancelDeadline.
- * Throws on invalid dates or policy (programmer error).
- */
 export function checkClientCancellation(
   startsAt: Date,
   now: Date,

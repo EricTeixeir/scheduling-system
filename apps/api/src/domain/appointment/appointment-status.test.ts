@@ -14,8 +14,7 @@ const MS = 1 / 60_000;
 type Expected = TransitionRefusal | 'OK';
 const INVALID = { early: 'INVALID_TRANSITION', late: 'INVALID_TRANSITION' } as const;
 
-// Written out by hand (not derived from the implementation table) so the test
-// is an independent specification of every from x to x actor combination.
+// Written by hand, not derived from the implementation table, so it is an independent spec.
 const EXPECTED: Record<
   AppointmentStatus,
   Record<AppointmentStatus, Record<Role, { early: Expected; late: Expected }>>
@@ -60,7 +59,6 @@ function outcome(from: AppointmentStatus, to: AppointmentStatus, actor: Role, no
   return result.ok ? 'OK' : result.reason;
 }
 
-// Flattened with Object.entries so the cases are iterated, not looked up by key.
 const CASES = Object.entries(EXPECTED).flatMap(([from, byTarget]) =>
   Object.entries(byTarget).flatMap(([to, byActor]) =>
     Object.entries(byActor).map(

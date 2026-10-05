@@ -27,7 +27,6 @@ function timeOfDay(hhmm: string): Date {
 async function seed(): Promise<void> {
   const prisma = createPrismaClient(process.env.DATABASE_URL ?? '');
   try {
-    // Upserts keep the seed idempotent: running it again changes nothing.
     for (const { weekday, opensAt, closesAt } of WEEKLY_HOURS) {
       const hours = {
         opensAt: timeOfDay(opensAt),

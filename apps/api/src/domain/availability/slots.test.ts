@@ -8,7 +8,6 @@ import type { WeeklyHours } from './weekly-hours';
 const SAO_PAULO = 'America/Sao_Paulo';
 const POLICY: BookingPolicy = { minLeadMinutes: 60, cancelDeadlineMinutes: 30, horizonDays: 90 };
 const MONDAY: WeeklyHours = { weekday: 1, opensAt: '09:00', closesAt: '12:00', slotMinutes: 30 };
-// Sunday before the Monday under test.
 const NOW = new Date('2026-10-04T12:00:00.000Z');
 
 // Monday 2026-10-05 in Sao Paulo (UTC-3): local 09:00 is 12:00Z.
