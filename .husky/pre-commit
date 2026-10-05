@@ -1,1 +1,3 @@
 sh scripts/check-forbidden.sh staged
+npx --no -- lint-staged
+npm run typecheck

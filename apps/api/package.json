@@ -1,0 +1,13 @@
+{
+  "name": "@scheduling/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run"
+  },
+  "dependencies": {
+    "@scheduling/shared": "0.1.0"
+  }
+}
