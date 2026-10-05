@@ -23,7 +23,10 @@ patterns="$(mktemp)"
 trap 'rm -f "$patterns"' EXIT
 # Strip CR (file edited on Windows) and drop comments/blank lines: a trailing
 # CR would make a pattern never match, and an empty line would match everything.
-tr -d '\r' < "$patterns_file" | grep -Ev '^[[:space:]]*(#|$)' > "$patterns" || true
+# Patterns are lowercased here and input is lowercased in check(), because
+# `grep -i -F -f` aborts on some grep builds (e.g. Git for Windows grep 3.0).
+tr -d '\r' < "$patterns_file" | grep -Ev '^[[:space:]]*(#|$)' \
+  | tr '[:upper:]' '[:lower:]' > "$patterns" || true
 
 if [ ! -s "$patterns" ]; then
   echo "check-forbidden: $patterns_file has no patterns." >&2
@@ -31,13 +34,26 @@ if [ ! -s "$patterns" ]; then
 fi
 
 # Reads text on stdin; prints offending lines and fails if any pattern matches.
+# grep exit codes: 0 = match, 1 = no match, anything else = grep itself failed,
+# which must block the commit instead of being mistaken for "clean".
 check() {
   label="$1"
-  if hits="$(grep -inF -f "$patterns")"; then
-    echo "check-forbidden: forbidden reference found in $label:" >&2
-    echo "$hits" >&2
-    exit 1
-  fi
+  set +e
+  hits="$(tr '[:upper:]' '[:lower:]' | grep -nF -f "$patterns")"
+  status=$?
+  set -e
+  case "$status" in
+    0)
+      echo "check-forbidden: forbidden reference found in $label:" >&2
+      echo "$hits" >&2
+      exit 1
+      ;;
+    1) ;;
+    *)
+      echo "check-forbidden: grep failed (exit $status) while checking $label." >&2
+      exit 1
+      ;;
+  esac
 }
 
 case "$mode" in
