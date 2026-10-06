@@ -12,4 +12,5 @@ export const appointmentKeys = {
   adminList: (query: AdminAppointmentsQueryInput) =>
     [...appointmentKeys.admin(), 'list', query] as const,
   history: (id: string) => [...appointmentKeys.admin(), 'history', id] as const,
+  summary: () => [...appointmentKeys.admin(), 'summary'] as const,
 };

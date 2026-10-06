@@ -1,17 +1,32 @@
 import {
   adminAppointmentSchema,
   adminAppointmentsQuerySchema,
+  adminCreateAppointmentSchema,
+  adminSummarySchema,
   appointmentHistorySchema,
+  clientSearchQuerySchema,
+  clientSearchResponseSchema,
   paginatedSchema,
   updateAppointmentStatusSchema,
   type AdminAppointment,
   type AdminAppointmentsQueryInput,
+  type AdminSummary,
   type AppointmentHistory,
   type AppointmentStatusTarget,
+  type ClientSearchResponse,
   type Paginated,
 } from '@scheduling/shared';
 
 import type { ApiClient } from '@/lib/api/http-client';
+
+import { IDEMPOTENCY_KEY_HEADER } from '../booking/booking-api';
+
+export interface BookForClientRequest {
+  readonly clientId: string;
+  readonly startsAt: string;
+  readonly notes: string;
+  readonly idempotencyKey: string;
+}
 
 const adminAppointmentPageSchema = paginatedSchema(adminAppointmentSchema);
 
@@ -57,6 +72,34 @@ export function fetchAppointmentHistory(
 ): Promise<AppointmentHistory> {
   return api.request(appointmentPath(id, 'history'), {
     schema: appointmentHistorySchema,
+    signal,
+  });
+}
+
+export function fetchAdminSummary(api: ApiClient, signal?: AbortSignal): Promise<AdminSummary> {
+  return api.request('/admin/appointments/summary', { schema: adminSummarySchema, signal });
+}
+
+export function bookForClient(
+  api: ApiClient,
+  { idempotencyKey, ...input }: BookForClientRequest,
+): Promise<AdminAppointment> {
+  return api.request('/admin/appointments', {
+    method: 'POST',
+    body: adminCreateAppointmentSchema.parse(input),
+    headers: { [IDEMPOTENCY_KEY_HEADER]: idempotencyKey },
+    schema: adminAppointmentSchema,
+  });
+}
+
+export function searchClients(
+  api: ApiClient,
+  q: string,
+  signal?: AbortSignal,
+): Promise<ClientSearchResponse> {
+  const query = new URLSearchParams(clientSearchQuerySchema.parse({ q }));
+  return api.request(`/admin/clients?${query.toString()}`, {
+    schema: clientSearchResponseSchema,
     signal,
   });
 }
