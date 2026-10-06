@@ -11,7 +11,8 @@
 set -eu
 
 mode="${1:-}"
-patterns_file="$(git rev-parse --git-dir)/forbidden-patterns"
+# --git-common-dir, not --git-dir: in a linked worktree --git-dir is .git/worktrees/<name>.
+patterns_file="$(git rev-parse --git-common-dir)/forbidden-patterns"
 
 # Fail closed: without the patterns file we cannot prove the commit is clean.
 if [ ! -f "$patterns_file" ]; then
