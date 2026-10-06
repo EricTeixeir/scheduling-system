@@ -1,11 +1,6 @@
 import { Writable } from 'node:stream';
 
-import {
-  demoAccountsResponseSchema,
-  problemDetailsSchema,
-  userSchema,
-  type ProblemDetails,
-} from '@scheduling/shared';
+import { problemDetailsSchema, userSchema, type ProblemDetails } from '@scheduling/shared';
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -20,7 +15,6 @@ import {
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from './auth-cookies';
 import { LOGIN_ATTEMPTS_PER_EMAIL_PER_MINUTE } from './auth.routes';
 import { REFRESH_REUSE_GRACE_SECONDS } from './auth.service';
-import { DEMO_NOTICE, DEMO_USERS } from './demo-accounts';
 
 const TEST_PASSWORD = 'test-password-123';
 const MARIA = { name: 'Maria Silva', email: 'maria@example.com', password: TEST_PASSWORD };
@@ -362,31 +356,6 @@ describe('POST /api/auth/logout', () => {
     const response = await post(server, '/api/auth/logout');
     expect(response.statusCode).toBe(204);
     expectClearedCookies(response);
-  });
-});
-
-describe('GET /api/auth/demo-accounts', () => {
-  it('is a normal 404 when DEMO_MODE is off', async () => {
-    const { app: server } = await start();
-    const body = expectProblem(await server.inject('/api/auth/demo-accounts'), 404);
-    expect(body).toMatchObject({ code: 'NOT_FOUND', detail: 'Rota não encontrada.' });
-  });
-
-  it('lists the demo credentials when DEMO_MODE is on', async () => {
-    const { app: server } = await start({ env: { DEMO_MODE: 'true' } });
-    const response = await server.inject('/api/auth/demo-accounts');
-    expect(response.statusCode).toBe(200);
-    expect(demoAccountsResponseSchema.parse(response.json())).toEqual({
-      notice: DEMO_NOTICE,
-      accounts: DEMO_USERS.map(({ role, email, password }) => ({ role, email, password })),
-    });
-    expect(response.json()).toEqual({
-      notice: DEMO_NOTICE,
-      accounts: [
-        { role: 'ADMIN', email: 'euro@admin.com', password: DEMO_USERS[0]?.password },
-        { role: 'CLIENT', email: 'euro@user.com', password: DEMO_USERS[1]?.password },
-      ],
-    });
   });
 });
 

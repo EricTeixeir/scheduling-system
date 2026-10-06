@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { demoAccountsResponseSchema } from './demo-accounts';
 import { emailSchema, nameSchema, passwordSchema } from './fields';
 import { loginSchema } from './login';
 import { registerSchema } from './register';
@@ -154,33 +153,5 @@ describe('userSchema', () => {
 
   it('never outputs fields outside the contract, such as the password hash', () => {
     expect(userSchema.parse({ ...user, passwordHash: 'x' })).toEqual(user);
-  });
-});
-
-describe('demoAccountsResponseSchema', () => {
-  const response = {
-    notice: 'Credenciais de demonstração.',
-    accounts: [{ role: 'ADMIN', email: 'admin@example.com', password: 'x' }],
-  };
-
-  it('accepts the notice and the accounts', () => {
-    expect(demoAccountsResponseSchema.parse(response)).toEqual(response);
-  });
-
-  it('strips fields outside the contract', () => {
-    const withExtra = {
-      ...response,
-      accounts: [{ ...response.accounts[0], passwordHash: 'h' }],
-    };
-    expect(demoAccountsResponseSchema.parse(withExtra)).toEqual(response);
-  });
-
-  it.each([
-    { ...response, notice: '' },
-    { ...response, accounts: [] },
-    { ...response, accounts: [{ role: 'ROOT', email: 'admin@example.com', password: 'x' }] },
-    { ...response, accounts: [{ role: 'ADMIN', email: 'nope', password: 'x' }] },
-  ])('rejects %j', (payload) => {
-    expect(demoAccountsResponseSchema.safeParse(payload).success).toBe(false);
   });
 });
