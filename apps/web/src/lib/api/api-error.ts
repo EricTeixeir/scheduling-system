@@ -1,4 +1,9 @@
-import { problemDetailsSchema, type ErrorCode, type FieldError } from '@scheduling/shared';
+import {
+  problemDetailsSchema,
+  type ErrorCode,
+  type FieldError,
+  type ScheduleConflict,
+} from '@scheduling/shared';
 
 export type ApiErrorKind = 'http' | 'network' | 'invalid-response';
 
@@ -9,6 +14,7 @@ export interface ApiErrorInit {
   readonly code?: ErrorCode | undefined;
   readonly detail?: string | undefined;
   readonly fieldErrors?: readonly FieldError[] | undefined;
+  readonly conflicts?: readonly ScheduleConflict[] | undefined;
   readonly cause?: unknown;
 }
 
@@ -20,8 +26,18 @@ export class ApiError extends Error {
   readonly code: ErrorCode | undefined;
   readonly detail: string | undefined;
   readonly fieldErrors: readonly FieldError[];
+  readonly conflicts: readonly ScheduleConflict[];
 
-  constructor({ kind, status, title, code, detail, fieldErrors = [], cause }: ApiErrorInit) {
+  constructor({
+    kind,
+    status,
+    title,
+    code,
+    detail,
+    fieldErrors = [],
+    conflicts = [],
+    cause,
+  }: ApiErrorInit) {
     super(detail ?? title, cause === undefined ? undefined : { cause });
     this.kind = kind;
     this.status = status;
@@ -29,6 +45,7 @@ export class ApiError extends Error {
     this.code = code;
     this.detail = detail;
     this.fieldErrors = fieldErrors;
+    this.conflicts = conflicts;
   }
 }
 
@@ -53,7 +70,7 @@ export async function apiErrorFromResponse(response: Response): Promise<ApiError
       title: response.statusText || `HTTP ${String(response.status)}`,
     });
   }
-  const { title, code, detail, errors } = problem.data;
+  const { title, code, detail, errors, conflicts } = problem.data;
   return new ApiError({
     kind: 'http',
     status: response.status,
@@ -61,6 +78,7 @@ export async function apiErrorFromResponse(response: Response): Promise<ApiError
     code,
     detail,
     fieldErrors: errors,
+    conflicts,
   });
 }
 

@@ -22,8 +22,13 @@ function calendarPart(date: LocalDate, options: Intl.DateTimeFormatOptions): str
   );
 }
 
+export function nameOfWeekday(weekday: Weekday): string {
+  // eslint-disable-next-line security/detect-object-injection -- weekday is a typed Weekday, never free-form input.
+  return WEEKDAY_NAMES[weekday];
+}
+
 export function weekdayName(date: LocalDate): string {
-  return WEEKDAY_NAMES[weekdayOf(date)];
+  return nameOfWeekday(weekdayOf(date));
 }
 
 export function shortWeekdayName(date: LocalDate): string {
@@ -32,6 +37,10 @@ export function shortWeekdayName(date: LocalDate): string {
 
 export function formatDayTitle(date: LocalDate): string {
   return `${weekdayName(date)}, ${String(dayOfMonth(date))} de ${calendarPart(date, { month: 'long' })}`;
+}
+
+export function formatDayMonth(date: LocalDate): string {
+  return calendarPart(date, { day: '2-digit', month: '2-digit' });
 }
 
 export function formatMonthSpan(first: LocalDate, last: LocalDate): string {

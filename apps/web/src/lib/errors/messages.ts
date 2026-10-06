@@ -19,10 +19,12 @@ const CODE_MESSAGES: Partial<Record<ErrorCode, string>> = {
   OUTSIDE_BUSINESS_HOURS: 'Este horário está fora do horário de atendimento.',
   MISALIGNED: 'Escolha um dos horários disponíveis na grade.',
   CANCEL_DEADLINE_PASSED: 'O prazo para cancelar este agendamento já terminou.',
-  INVALID_TRANSITION: 'Este agendamento não pode mudar para o status escolhido.',
+  INVALID_TRANSITION: 'Este agendamento já não está confirmado, então o status não pode mudar.',
   ACTOR_NOT_ALLOWED: 'Você não tem permissão para esta ação.',
-  NOT_STARTED_YET: 'O atendimento ainda não começou.',
-  ALREADY_STARTED: 'O atendimento já começou.',
+  NOT_STARTED_YET:
+    'O atendimento ainda não começou. Registre o resultado depois do horário marcado.',
+  ALREADY_STARTED:
+    'O atendimento já começou e não pode mais ser cancelado. Registre se foi concluído ou se o cliente não compareceu.',
   VALIDATION_FAILED: 'Revise os campos destacados.',
   PAYLOAD_TOO_LARGE: 'Os dados enviados são grandes demais.',
 };

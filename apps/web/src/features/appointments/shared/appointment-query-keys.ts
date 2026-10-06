@@ -1,4 +1,4 @@
-import type { AppointmentScope } from '@scheduling/shared';
+import type { AdminAppointmentsQueryInput, AppointmentScope } from '@scheduling/shared';
 
 import type { LocalDate } from '@/lib/time/local-date';
 
@@ -8,4 +8,8 @@ export const appointmentKeys = {
   availabilityOn: (date: LocalDate) => [...appointmentKeys.availability(), date] as const,
   mine: () => [...appointmentKeys.all, 'mine'] as const,
   mineIn: (scope: AppointmentScope) => [...appointmentKeys.mine(), scope] as const,
+  admin: () => [...appointmentKeys.all, 'admin'] as const,
+  adminList: (query: AdminAppointmentsQueryInput) =>
+    [...appointmentKeys.admin(), 'list', query] as const,
+  history: (id: string) => [...appointmentKeys.admin(), 'history', id] as const,
 };
