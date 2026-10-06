@@ -17,5 +17,6 @@ export function toProblemDetails(error: AppError, requestId: string): ProblemDet
     instance: `urn:uuid:${requestId}`,
     code: error.code,
     ...(error.errors === undefined ? {} : { errors: [...error.errors] }),
+    ...(error.conflicts === undefined ? {} : { conflicts: [...error.conflicts] }),
   };
 }

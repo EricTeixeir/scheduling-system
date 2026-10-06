@@ -1,8 +1,8 @@
-import type { AppointmentStatus, Role } from '@scheduling/shared';
+import type { AppointmentHistoryAction, AppointmentStatus, Role } from '@scheduling/shared';
 
-export type AuditAction = 'APPOINTMENT_CREATED' | 'APPOINTMENT_CANCELLED';
+export type AuditAction = AppointmentHistoryAction | 'BLOCK_CREATED' | 'BLOCK_DELETED';
 
-export type AuditEntityType = 'APPOINTMENT';
+export type AuditEntityType = 'APPOINTMENT' | 'SCHEDULE_BLOCK';
 
 // metadata is stored as-is and must never carry personal data (names, emails, notes) or secrets.
 export interface AuditEvent {

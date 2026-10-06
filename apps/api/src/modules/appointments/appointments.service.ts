@@ -6,11 +6,9 @@ import type {
   CreateAppointmentOutput,
 } from '@scheduling/shared';
 
-import {
-  decideTransition,
-  type TransitionRefusal,
-} from '../../domain/appointment/appointment-status';
+import { decideTransition } from '../../domain/appointment/appointment-status';
 import { checkBookingWindow, type BookingPolicy } from '../../domain/appointment/booking-policy';
+import { blockOverlaps } from '../../domain/availability/schedule-block';
 import { resolveRequestedSlot } from '../../domain/availability/slots';
 import type { Clock } from '../../domain/time/clock';
 import { addMinutes } from '../../domain/time/instant';
@@ -19,15 +17,13 @@ import type { TimeRange } from '../../domain/time/time-range';
 import {
   BusinessRuleError,
   ConflictError,
-  ForbiddenError,
   IdempotencyKeyReusedError,
   NotFoundError,
-  type AppError,
 } from '../../errors/app-errors';
 import type { ScheduleReader } from '../availability/availability.ports';
 import {
-  appointmentCancelledEvent,
   appointmentCreatedEvent,
+  appointmentStatusChangedEvent,
   type Actor,
 } from './appointment-audit';
 import type {
@@ -36,10 +32,13 @@ import type {
   StoredResponse,
 } from './appointments.ports';
 import { IDEMPOTENCY_KEY_TTL_HOURS, IdempotencyKeyTakenError, requestHashOf } from './idempotency';
+import { transitionError } from './transition-errors';
 
 export const KEY_IN_FLIGHT_DETAIL =
   'Uma requisição com esta chave de idempotência ainda está em andamento. Tente novamente em instantes.';
 export const NOT_FOUND_DETAIL = 'Agendamento não encontrado.';
+export const SLOT_BLOCKED_DETAIL = 'Este horário foi bloqueado pela agenda. Escolha outro.';
+const NOT_CANCELLABLE_DETAIL = 'Este agendamento não pode mais ser cancelado.';
 
 export interface RequestContext {
   readonly actor: Actor;
@@ -90,19 +89,6 @@ export function toAppointmentDto(record: AppointmentRecord): Appointment {
   };
 }
 
-function transitionError(reason: TransitionRefusal): AppError {
-  switch (reason) {
-    case 'INVALID_TRANSITION':
-      return new ConflictError(reason, 'Este agendamento não pode mais ser cancelado.');
-    case 'ACTOR_NOT_ALLOWED':
-      return new ForbiddenError(reason);
-    case 'CANCEL_DEADLINE_PASSED':
-    case 'NOT_STARTED_YET':
-    case 'ALREADY_STARTED':
-      return new BusinessRuleError(reason);
-  }
-}
-
 function idempotencyCutoff(now: Date): Date {
   return addMinutes(now, -IDEMPOTENCY_KEY_TTL_HOURS * 60);
 }
@@ -127,11 +113,18 @@ export function createAppointmentsService({
   }
 
   async function resolveBookableSlot(startsAt: Date, now: Date): Promise<TimeRange> {
-    const { hours, isClosedDate } = await schedule.findDaySchedule(localDateOf(startsAt, timeZone));
+    const { hours, isClosedDate, blocks } = await schedule.findDaySchedule(
+      localDateOf(startsAt, timeZone),
+    );
     const slot = resolveRequestedSlot({ startsAt, hours, isClosedDate, timeZone });
     if (!slot.ok) throw new BusinessRuleError(slot.reason);
     const window = checkBookingWindow(slot.value.startsAt, now, policy);
     if (!window.ok) throw new BusinessRuleError(window.reason);
+    // Blocks are computed, not a database constraint: a booking committed while an admin creates
+    // an overlapping block can slip through both checks. Accepted risk; the admin sees it in the list.
+    if (blocks.some((block) => blockOverlaps(block, slot.value, timeZone))) {
+      throw new ConflictError('SLOT_BLOCKED', SLOT_BLOCKED_DETAIL);
+    }
     return slot.value;
   }
 
@@ -144,7 +137,7 @@ export function createAppointmentsService({
       now,
       policy,
     });
-    if (!decision.ok) throw transitionError(decision.reason);
+    if (!decision.ok) throw transitionError(decision.reason, NOT_CANCELLABLE_DETAIL);
   }
 
   return {
@@ -212,7 +205,7 @@ export function createAppointmentsService({
           const updated = await tx.cancelIfConfirmed(id, actor.id);
           if (updated !== undefined) {
             await tx.audit.append(
-              appointmentCancelledEvent({ actor, requestId, now }, current, updated),
+              appointmentStatusChangedEvent({ actor, requestId, now }, current, updated),
             );
           }
           return updated;

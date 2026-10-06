@@ -1,3 +1,4 @@
+import { blockAppliesOn } from '../domain/availability/schedule-block';
 import type { WeeklyHours } from '../domain/availability/weekly-hours';
 import { weekdayOf, type LocalDate } from '../domain/time/local-date';
 import { overlaps } from '../domain/time/time-range';
@@ -11,6 +12,7 @@ import type {
 import { IdempotencyKeyTakenError } from '../modules/appointments/idempotency';
 import type { AuditEvent } from '../modules/audit/audit.ports';
 import type { AvailabilityRepository } from '../modules/availability/availability.ports';
+import type { ScheduleBlockRecord } from '../modules/schedule-blocks/schedule-blocks.ports';
 
 // Mirrors PostgreSQL: uncommitted writes are invisible, a second claim of a key waits for the
 // first transaction to end (unique index), and overlaps are refused like no_overlap.
@@ -18,6 +20,7 @@ export interface InMemorySchedulingStore {
   readonly rules: Map<number, WeeklyHours>;
   readonly closedDates: Set<LocalDate>;
   readonly appointments: Map<string, AppointmentRecord>;
+  readonly blocks: Map<string, ScheduleBlockRecord>;
   readonly idempotencyKeys: Map<string, NewIdempotencyRecord>;
   readonly auditEvents: AuditEvent[];
   readonly availability: AvailabilityRepository;
@@ -46,6 +49,7 @@ export function createInMemorySchedulingStore(
   const rules = new Map(hours.map((rule) => [rule.weekday, rule]));
   const closedDates = new Set<LocalDate>();
   const appointments = new Map<string, AppointmentRecord>();
+  const blocks = new Map<string, ScheduleBlockRecord>();
   const idempotencyKeys = new Map<string, NewIdempotencyRecord>();
   const auditEvents: AuditEvent[] = [];
   const pendingKeys = new Map<string, Promise<void>>();
@@ -55,6 +59,7 @@ export function createInMemorySchedulingStore(
     rules,
     closedDates,
     appointments,
+    blocks,
     idempotencyKeys,
     auditEvents,
     holdCommitsUntil: undefined,
@@ -64,6 +69,7 @@ export function createInMemorySchedulingStore(
         Promise.resolve({
           hours: rules.get(weekdayOf(date)) ?? null,
           isClosedDate: closedDates.has(date),
+          blocks: [...blocks.values()].filter((block) => blockAppliesOn(block, date)),
         }),
       findBusyRanges: (within) =>
         Promise.resolve(

@@ -9,6 +9,9 @@ import { handleError, replyNotFound } from './http/error-handler';
 import { echoRequestId, generateRequestId } from './http/request-id';
 import { registerSecurityPlugins } from './http/security-plugins';
 import type { DatabaseClient } from './infra/db/prisma-client';
+import type { AdminAppointmentRepository } from './modules/admin-appointments/admin-appointments.ports';
+import { adminAppointmentsRoutes } from './modules/admin-appointments/admin-appointments.routes';
+import { createAdminAppointmentsService } from './modules/admin-appointments/admin-appointments.service';
 import type { AppointmentRepository } from './modules/appointments/appointments.ports';
 import { appointmentsRoutes } from './modules/appointments/appointments.routes';
 import { createAppointmentsService } from './modules/appointments/appointments.service';
@@ -24,6 +27,9 @@ import { createAuthService } from './modules/auth/auth.service';
 import type { AvailabilityRepository } from './modules/availability/availability.ports';
 import { availabilityRoutes } from './modules/availability/availability.routes';
 import { createAvailabilityService } from './modules/availability/availability.service';
+import type { ScheduleBlockRepository } from './modules/schedule-blocks/schedule-blocks.ports';
+import { scheduleBlocksRoutes } from './modules/schedule-blocks/schedule-blocks.routes';
+import { createScheduleBlocksService } from './modules/schedule-blocks/schedule-blocks.service';
 import { healthRoutes } from './routes/health';
 
 const CONNECTION_TIMEOUT_MS = 15_000;
@@ -39,6 +45,8 @@ export interface AppDependencies {
   readonly refreshTokens: RefreshTokenRepository;
   readonly availability: AvailabilityRepository;
   readonly appointments: AppointmentRepository;
+  readonly adminAppointments: AdminAppointmentRepository;
+  readonly scheduleBlocks: ScheduleBlockRepository;
 }
 
 export async function buildApp({
@@ -51,6 +59,8 @@ export async function buildApp({
   refreshTokens,
   availability,
   appointments,
+  adminAppointments,
+  scheduleBlocks,
 }: AppDependencies): Promise<FastifyInstance> {
   const app = Fastify({
     loggerInstance: logger,
@@ -108,6 +118,16 @@ export async function buildApp({
   await app.register(appointmentsRoutes, {
     prefix: '/api/appointments',
     service: createAppointmentsService({ appointments, schedule: availability, ...businessRules }),
+    guards,
+  });
+  await app.register(adminAppointmentsRoutes, {
+    prefix: '/api/admin/appointments',
+    service: createAdminAppointmentsService({ appointments: adminAppointments, ...businessRules }),
+    guards,
+  });
+  await app.register(scheduleBlocksRoutes, {
+    prefix: '/api/admin/blocks',
+    service: createScheduleBlocksService({ blocks: scheduleBlocks, ...businessRules }),
     guards,
   });
 

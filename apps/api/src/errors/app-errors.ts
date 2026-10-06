@@ -1,10 +1,11 @@
-import type { ErrorCode, FieldError } from '@scheduling/shared';
+import type { ErrorCode, FieldError, ScheduleConflict } from '@scheduling/shared';
 
 import { problemTitle } from './problem-titles';
 
 export interface AppErrorOptions {
   readonly detail?: string | undefined;
   readonly errors?: readonly FieldError[] | undefined;
+  readonly conflicts?: readonly ScheduleConflict[] | undefined;
 }
 
 export class AppError extends Error {
@@ -12,17 +13,19 @@ export class AppError extends Error {
   readonly title: string;
   readonly detail: string | undefined;
   readonly errors: readonly FieldError[] | undefined;
+  readonly conflicts: readonly ScheduleConflict[] | undefined;
 
   constructor(
     readonly status: number,
     readonly code: ErrorCode,
-    { detail, errors }: AppErrorOptions = {},
+    { detail, errors, conflicts }: AppErrorOptions = {},
   ) {
     const title = problemTitle(code);
     super(detail ?? title);
     this.title = title;
     this.detail = detail;
     this.errors = errors;
+    this.conflicts = conflicts;
   }
 }
 
@@ -62,13 +65,24 @@ export class NotFoundError extends AppError {
   }
 }
 
-export type ConflictCode = Extract<ErrorCode, 'CONFLICT' | 'SLOT_TAKEN' | 'INVALID_TRANSITION'>;
+export type ConflictCode = Extract<
+  ErrorCode,
+  'CONFLICT' | 'SLOT_TAKEN' | 'SLOT_BLOCKED' | 'INVALID_TRANSITION'
+>;
 
 export class ConflictError extends AppError {
   override readonly name = 'ConflictError';
 
   constructor(code: ConflictCode, detail?: string) {
     super(409, code, { detail });
+  }
+}
+
+export class BlockConflictError extends AppError {
+  override readonly name = 'BlockConflictError';
+
+  constructor(conflicts: readonly ScheduleConflict[], detail: string) {
+    super(409, 'BLOCK_CONFLICT', { detail, conflicts });
   }
 }
 

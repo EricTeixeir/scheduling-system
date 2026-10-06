@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { adminAppointmentSchema, appointmentSchema } from './appointment';
-import { adminAppointmentsQuerySchema, clientAppointmentsQuerySchema } from './appointments-query';
+import { appointmentHistorySchema } from './appointment-history';
+import {
+  adminAppointmentsQuerySchema,
+  clientAppointmentsQuerySchema,
+  SEARCH_MAX_LENGTH,
+} from './appointments-query';
 import { createAppointmentSchema } from './create-appointment';
 import { updateAppointmentStatusSchema } from './update-appointment-status';
 
@@ -199,5 +204,72 @@ describe('clientAppointmentsQuerySchema', () => {
 
   it.each([{ scope: 'all' }, { status: 'CONFIRMED' }, { page: '0' }])('rejects %j', (query) => {
     expect(clientAppointmentsQuerySchema.safeParse(query).success).toBe(false);
+  });
+});
+
+describe('adminAppointmentsQuerySchema search (q)', () => {
+  it('trims the search text', () => {
+    expect(adminAppointmentsQuerySchema.parse({ q: '  Maria  ' })).toEqual({
+      page: 1,
+      pageSize: 20,
+      q: 'Maria',
+    });
+  });
+
+  it.each(['', '   '])('drops a blank search (%j)', (q) => {
+    const parsed = adminAppointmentsQuerySchema.parse({ q });
+    expect('q' in parsed).toBe(false);
+  });
+
+  it(`accepts ${String(SEARCH_MAX_LENGTH)} characters and rejects one more`, () => {
+    expect(
+      adminAppointmentsQuerySchema.safeParse({ q: 'a'.repeat(SEARCH_MAX_LENGTH) }).success,
+    ).toBe(true);
+    const tooLong = adminAppointmentsQuerySchema.safeParse({
+      q: 'a'.repeat(SEARCH_MAX_LENGTH + 1),
+    });
+    expect(tooLong.error?.issues[0]?.message).toBe('A busca deve ter no máximo 100 caracteres.');
+  });
+
+  it('counts the limit after trimming', () => {
+    const padded = `  ${'a'.repeat(SEARCH_MAX_LENGTH)}  `;
+    expect(adminAppointmentsQuerySchema.safeParse({ q: padded }).success).toBe(true);
+  });
+
+  it.each([['a', 'b'], 1, null])('rejects a non-text search %j', (q) => {
+    expect(adminAppointmentsQuerySchema.safeParse({ q }).success).toBe(false);
+  });
+});
+
+describe('appointmentHistorySchema', () => {
+  const entry = {
+    id: '3f2b8c1e-9a4d-4e7b-8c2a-1d5e6f7a8b9c',
+    occurredAt: '2026-10-05T12:00:00.000Z',
+    action: 'APPOINTMENT_CREATED',
+    fromStatus: null,
+    toStatus: 'CONFIRMED',
+    actor: { id: '9b1e4c2a-7d3f-4a8b-9c1d-2e3f4a5b6c7d', name: 'Maria', role: 'CLIENT' },
+  };
+
+  it('accepts a history and an empty one', () => {
+    expect(appointmentHistorySchema.parse({ items: [entry] })).toEqual({ items: [entry] });
+    expect(appointmentHistorySchema.parse({ items: [] })).toEqual({ items: [] });
+  });
+
+  it('strips unknown keys, including the actor e-mail', () => {
+    const extra = { ...entry, metadata: {}, actor: { ...entry.actor, email: 'm@example.com' } };
+    expect(appointmentHistorySchema.parse({ items: [extra] })).toEqual({ items: [entry] });
+  });
+
+  it.each([
+    { action: 'BLOCK_CREATED' },
+    { toStatus: 'PENDING' },
+    { fromStatus: undefined },
+    { actor: { ...entry.actor, role: 'ROOT' } },
+    { occurredAt: '2026-10-05 12:00' },
+  ])('rejects %j', (override) => {
+    expect(appointmentHistorySchema.safeParse({ items: [{ ...entry, ...override }] }).success).toBe(
+      false,
+    );
   });
 });
