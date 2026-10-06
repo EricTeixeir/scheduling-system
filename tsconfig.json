@@ -1,10 +1,10 @@
 {
-  // Covers only the root-level config files; each workspace has its own tsconfig.json.
+  // Covers the root-level config files, scripts/ and tests/; each workspace has its own tsconfig.json.
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,
     "types": ["node"]
   },
-  "include": ["*.ts", "*.js"]
+  "include": ["*.ts", "*.js", "scripts/**/*.ts", "tests/**/*.ts"]
 }

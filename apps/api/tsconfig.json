@@ -3,5 +3,5 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["src", "prisma", "prisma.config.ts", "vitest.config.ts"]
+  "include": ["src", "prisma", "build.ts", "prisma.config.ts", "vitest.config.ts"]
 }

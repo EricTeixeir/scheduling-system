@@ -3,24 +3,7 @@ import type { PrismaClient } from '../src/infra/db/generated/client.js';
 import { createPrismaClient } from '../src/infra/db/prisma-client.js';
 import { createPasswordHasher } from '../src/modules/auth/password-hasher.js';
 import { planSeedAccounts, type SeedAccount } from '../src/modules/auth/seed-accounts.js';
-
-interface WeeklyHours {
-  weekday: number;
-  opensAt: string;
-  closesAt: string;
-}
-
-const SLOT_MINUTES = 30;
-
-// Sunday (0) has no row, which means closed.
-const WEEKLY_HOURS: readonly WeeklyHours[] = [
-  { weekday: 1, opensAt: '09:00', closesAt: '18:00' },
-  { weekday: 2, opensAt: '09:00', closesAt: '18:00' },
-  { weekday: 3, opensAt: '09:00', closesAt: '18:00' },
-  { weekday: 4, opensAt: '09:00', closesAt: '18:00' },
-  { weekday: 5, opensAt: '09:00', closesAt: '18:00' },
-  { weekday: 6, opensAt: '09:00', closesAt: '13:00' },
-];
+import { SEED_SLOT_MINUTES, SEED_WEEKLY_HOURS } from './seed-schedule.js';
 
 // Prisma represents TIME columns as a Date on 1970-01-01 and keeps only the
 // UTC time part, so the wall-clock value must be written as UTC here.
@@ -29,11 +12,11 @@ function timeOfDay(hhmm: string): Date {
 }
 
 async function seedAvailability(prisma: PrismaClient): Promise<void> {
-  for (const { weekday, opensAt, closesAt } of WEEKLY_HOURS) {
+  for (const { weekday, opensAt, closesAt } of SEED_WEEKLY_HOURS) {
     const hours = {
       opensAt: timeOfDay(opensAt),
       closesAt: timeOfDay(closesAt),
-      slotMinutes: SLOT_MINUTES,
+      slotMinutes: SEED_SLOT_MINUTES,
     };
     await prisma.availabilityRule.upsert({
       where: { weekday },
@@ -41,7 +24,7 @@ async function seedAvailability(prisma: PrismaClient): Promise<void> {
       update: hours,
     });
   }
-  console.log(`Seeded ${String(WEEKLY_HOURS.length)} availability rules.`);
+  console.log(`Seeded ${String(SEED_WEEKLY_HOURS.length)} availability rules.`);
 }
 
 // Create-if-missing only: an existing account keeps its password and role.

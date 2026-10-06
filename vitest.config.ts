@@ -8,7 +8,7 @@ export default defineConfig({
       'packages/shared',
       'apps/api',
       'apps/web',
-      // The `rules` project (business-rule integration tests over HTTP) goes here.
+      // Business-rule tests over HTTP live in vitest.rules.config.ts.
     ],
     coverage: {
       provider: 'v8',
