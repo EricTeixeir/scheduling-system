@@ -1,23 +1,24 @@
 import { weekdayOf } from '../../domain/time/local-date';
+import { localDateToDateColumn, timeColumnToHhMm } from '../../infra/db/column-values';
 import type { PrismaClient } from '../../infra/db/generated/client.js';
+import { BLOCK_COLUMNS, toScheduleBlock } from '../schedule-blocks/schedule-blocks.repository';
 import type { AvailabilityRepository } from './availability.ports';
-
-// Prisma reads TIME columns as a Date on 1970-01-01 whose UTC time is the stored wall-clock time.
-function toHhMm(time: Date): string {
-  const hours = String(time.getUTCHours()).padStart(2, '0');
-  const minutes = String(time.getUTCMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
-}
 
 export function createPrismaAvailabilityRepository(prisma: PrismaClient): AvailabilityRepository {
   return {
     async findDaySchedule(date) {
       const weekday = weekdayOf(date);
-      const [rule, closed] = await Promise.all([
+      const day = localDateToDateColumn(date);
+      const [rule, closed, blocks] = await Promise.all([
         prisma.availabilityRule.findUnique({ where: { weekday } }),
-        prisma.closedDate.findUnique({
-          where: { date: new Date(`${date}T00:00:00.000Z`) },
-          select: { date: true },
+        prisma.closedDate.findUnique({ where: { date: day }, select: { date: true } }),
+        prisma.scheduleBlock.findMany({
+          where: {
+            weekdays: { has: weekday },
+            startsOn: { lte: day },
+            OR: [{ endsOn: null }, { endsOn: { gte: day } }],
+          },
+          select: BLOCK_COLUMNS,
         }),
       ]);
       return {
@@ -26,11 +27,12 @@ export function createPrismaAvailabilityRepository(prisma: PrismaClient): Availa
             ? null
             : {
                 weekday: rule.weekday,
-                opensAt: toHhMm(rule.opensAt),
-                closesAt: toHhMm(rule.closesAt),
+                opensAt: timeColumnToHhMm(rule.opensAt),
+                closesAt: timeColumnToHhMm(rule.closesAt),
                 slotMinutes: rule.slotMinutes,
               },
         isClosedDate: closed !== null,
+        blocks: blocks.map(toScheduleBlock),
       };
     },
 

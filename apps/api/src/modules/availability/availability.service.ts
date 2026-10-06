@@ -1,9 +1,11 @@
 import type { AvailabilityResponse } from '@scheduling/shared';
 
 import type { BookingPolicy } from '../../domain/appointment/booking-policy';
+import { blockOccurrenceOn } from '../../domain/availability/schedule-block';
 import { listAvailableSlots } from '../../domain/availability/slots';
 import type { Clock } from '../../domain/time/clock';
 import { localDayRange, type LocalDate } from '../../domain/time/local-date';
+import type { TimeRange } from '../../domain/time/time-range';
 import type { AvailabilityRepository } from './availability.ports';
 
 export interface AvailabilityService {
@@ -25,11 +27,15 @@ export function createAvailabilityService({
 }: AvailabilityServiceDependencies): AvailabilityService {
   return {
     async listSlots(date) {
-      const { hours, isClosedDate } = await availability.findDaySchedule(date);
-      const busy =
+      const { hours, isClosedDate, blocks } = await availability.findDaySchedule(date);
+      const booked =
         hours === null || isClosedDate
           ? []
           : await availability.findBusyRanges(localDayRange(date, timeZone));
+      const blocked = blocks
+        .map((block) => blockOccurrenceOn(block, date, timeZone))
+        .filter((occurrence): occurrence is TimeRange => occurrence !== undefined);
+      const busy = [...booked, ...blocked];
       const slots = listAvailableSlots({
         date,
         hours,

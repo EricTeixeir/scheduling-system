@@ -7,6 +7,7 @@ import type { DatabaseClient } from '../infra/db/prisma-client';
 import { createLogger } from '../logging/logger';
 import type { PasswordHasher } from '../modules/auth/auth.ports';
 import { createFakeClock } from './fake-clock';
+import { createInMemoryAdminRepositories } from './in-memory-admin';
 import {
   createInMemorySchedulingStore,
   type InMemorySchedulingStore,
@@ -56,15 +57,19 @@ export function buildTestApp({
 }: TestAppOptions = {}): Promise<FastifyInstance> {
   const config = testConfig(env);
   const store = scheduling ?? createInMemorySchedulingStore();
+  const userRepository = users ?? createInMemoryUserRepository();
+  const admin = createInMemoryAdminRepositories(store, userRepository.rows);
   return buildApp({
     config,
     prisma: prisma ?? healthyDatabase,
     logger: logger ?? createLogger(config.logLevel),
     clock: clock ?? createFakeClock(),
     passwordHasher: passwordHasher ?? cheapestArgon2idHasher,
-    users: users ?? createInMemoryUserRepository(),
+    users: userRepository,
     refreshTokens: refreshTokens ?? createInMemoryRefreshTokenRepository(),
     availability: store.availability,
     appointments: store.repository,
+    adminAppointments: admin.adminAppointments,
+    scheduleBlocks: admin.scheduleBlocks,
   });
 }

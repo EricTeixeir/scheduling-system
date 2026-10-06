@@ -6,6 +6,7 @@ import { DEFAULT_BOOKING_POLICY } from '../../domain/appointment/booking-policy'
 import { createFakeClock } from '../../test/fake-clock';
 import { createInMemorySchedulingStore } from '../../test/in-memory-appointments';
 import type { AppointmentRecord } from '../appointments/appointments.ports';
+import type { ScheduleBlockRecord } from '../schedule-blocks/schedule-blocks.ports';
 import { createAvailabilityService } from './availability.service';
 
 const TIME_ZONE = 'America/Sao_Paulo';
@@ -101,5 +102,57 @@ describe('availability service', () => {
     const { service } = setup();
     expect((await service.listSlots('2026-10-02')).slots).toEqual([]);
     expect((await service.listSlots('2027-01-05')).slots).toEqual([]);
+  });
+
+  describe('with schedule blocks', () => {
+    function block(overrides: Partial<ScheduleBlockRecord> = {}): ScheduleBlockRecord {
+      return {
+        id: randomUUID(),
+        weekdays: [1, 2, 3, 4, 5],
+        startTime: '13:00',
+        endTime: '13:30',
+        startsOn: '2026-10-05',
+        endsOn: null,
+        reason: null,
+        createdBy: randomUUID(),
+        createdAt: new Date(MONDAY_9AM_LOCAL),
+        ...overrides,
+      };
+    }
+
+    async function startsOn(date: string, ...blocks: ScheduleBlockRecord[]) {
+      const { service, store } = setup();
+      for (const each of blocks) store.blocks.set(each.id, each);
+      return (await service.listSlots(date)).slots.map((slot) => slot.startsAt);
+    }
+
+    it('does not offer slots a block covers, even partly', async () => {
+      const starts = await startsOn(TUESDAY, block({ startTime: '13:00', endTime: '14:15' }));
+      expect(starts).toHaveLength(15);
+      expect(starts).not.toContain('2026-10-06T16:00:00.000Z');
+      expect(starts).not.toContain('2026-10-06T16:30:00.000Z');
+      expect(starts).not.toContain('2026-10-06T17:00:00.000Z');
+      expect(starts).toContain('2026-10-06T15:30:00.000Z');
+      expect(starts).toContain('2026-10-06T17:30:00.000Z');
+    });
+
+    it('ignores blocks for other weekdays and outside their date range', async () => {
+      const starts = await startsOn(
+        TUESDAY,
+        block({ weekdays: [1, 3, 5] }),
+        block({ endsOn: '2026-10-05' }),
+        block({ startsOn: '2026-10-07' }),
+      );
+      expect(starts).toHaveLength(18);
+    });
+
+    it('combines blocks with booked appointments', async () => {
+      const { service, store } = setup();
+      const booked = appointmentAt('2026-10-06T12:00:00.000Z');
+      store.appointments.set(booked.id, booked);
+      const lunch = block();
+      store.blocks.set(lunch.id, lunch);
+      expect((await service.listSlots(TUESDAY)).slots).toHaveLength(16);
+    });
   });
 });

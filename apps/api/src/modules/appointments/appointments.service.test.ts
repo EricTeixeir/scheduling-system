@@ -13,6 +13,7 @@ import {
   createAppointmentsService,
   KEY_IN_FLIGHT_DETAIL,
   NOT_FOUND_DETAIL,
+  SLOT_BLOCKED_DETAIL,
   type RequestContext,
 } from './appointments.service';
 import { IdempotencyKeyTakenError } from './idempotency';
@@ -140,6 +141,48 @@ describe('create', () => {
   it('allows booking a slot again after its appointment was cancelled', async () => {
     const { service, store } = setup();
     insert(store, appointmentRow({ userId: OTHER_CLIENT.id, status: 'CANCELLED' }));
+    const result = await service.create(context(), command({ startsAt: TUESDAY_10AM }));
+    expect(result.status).toBe(201);
+  });
+});
+
+describe('create: schedule blocks', () => {
+  function blockFrom(startTime: string, endTime: string, endsOn: string | null = null) {
+    return {
+      id: randomUUID(),
+      weekdays: [1, 2, 3, 4, 5],
+      startTime,
+      endTime,
+      startsOn: '2026-10-05',
+      endsOn,
+      reason: null,
+      createdBy: randomUUID(),
+      createdAt: new Date(MONDAY_9AM_LOCAL),
+    };
+  }
+
+  it.each([
+    ['covers the whole slot', '10:00', '10:30'],
+    ['covers part of the slot', '10:15', '11:00'],
+  ])('refuses a slot a block %s (409 SLOT_BLOCKED), storing nothing', async (_label, from, to) => {
+    const { service, store } = setup();
+    const block = blockFrom(from, to);
+    store.blocks.set(block.id, block);
+    const error = await refusal(service.create(context(), command({ startsAt: TUESDAY_10AM })));
+    expect(error).toMatchObject({ status: 409, code: 'SLOT_BLOCKED', detail: SLOT_BLOCKED_DETAIL });
+    expect(store.appointments.size).toBe(0);
+    expect(store.idempotencyKeys.size).toBe(0);
+    expect(store.auditEvents).toEqual([]);
+  });
+
+  it.each([
+    ['ends when the slot starts', blockFrom('09:30', '10:00')],
+    ['starts when the slot ends', blockFrom('10:30', '11:00')],
+    ['ended the day before', blockFrom('10:00', '10:30', '2026-10-05')],
+    ['skips that weekday', { ...blockFrom('10:00', '10:30'), weekdays: [1, 3, 5] }],
+  ])('books a slot next to a block that %s', async (_label, block) => {
+    const { service, store } = setup();
+    store.blocks.set(block.id, block);
     const result = await service.create(context(), command({ startsAt: TUESDAY_10AM }));
     expect(result.status).toBe(201);
   });
