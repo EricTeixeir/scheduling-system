@@ -2,6 +2,7 @@ import { ConflictError, NotFoundError, type ConflictCode } from '../../errors/ap
 import { Prisma } from './generated/client.js';
 
 const EXCLUSION_VIOLATION = '23P01';
+const UNIQUE_VIOLATION_STATE = '23505';
 const DEADLOCK_DETECTED = '40P01';
 const SERIALIZATION_FAILURE = '40001';
 const TRANSACTION_WRITE_CONFLICT = 'P2034';
@@ -22,6 +23,11 @@ function sqlState(error: Prisma.PrismaClientKnownRequestError): string | undefin
   if (!isRecord(adapterError) || !isRecord(adapterError.cause)) return undefined;
   const { originalCode } = adapterError.cause;
   return typeof originalCode === 'string' ? originalCode : undefined;
+}
+
+export function isUniqueViolation(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  return error.code === UNIQUE_VIOLATION || sqlState(error) === UNIQUE_VIOLATION_STATE;
 }
 
 // `meta` is never copied into the AppError: it carries a driver stack trace.

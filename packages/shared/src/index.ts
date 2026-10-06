@@ -24,6 +24,12 @@ export {
   PASSWORD_MIN_LENGTH,
   passwordSchema,
 } from './auth/fields';
+export {
+  demoAccountSchema,
+  demoAccountsResponseSchema,
+  type DemoAccount,
+  type DemoAccountsResponse,
+} from './auth/demo-accounts';
 export { loginSchema, type LoginInput, type LoginOutput } from './auth/login';
 export { registerSchema, type RegisterInput, type RegisterOutput } from './auth/register';
 export { userSchema, type User } from './auth/user';

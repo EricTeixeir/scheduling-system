@@ -1,7 +1,11 @@
 import { buildApp } from './app';
 import { ConfigError, loadConfig } from './config/env';
+import { systemClock } from './domain/time/clock';
 import { createPrismaClient } from './infra/db/prisma-client';
 import { createLogger } from './logging/logger';
+import { createPasswordHasher } from './modules/auth/password-hasher';
+import { createPrismaRefreshTokenRepository } from './modules/auth/refresh-token.repository';
+import { createPrismaUserRepository } from './modules/auth/user.repository';
 
 const SHUTDOWN_GRACE_MS = 10_000;
 
@@ -9,7 +13,15 @@ async function main(): Promise<void> {
   const config = loadConfig(process.env);
   const logger = createLogger(config.logLevel);
   const prisma = createPrismaClient(config.databaseUrl);
-  const app = await buildApp({ config, prisma, logger });
+  const app = await buildApp({
+    config,
+    prisma,
+    logger,
+    clock: systemClock,
+    passwordHasher: createPasswordHasher(),
+    users: createPrismaUserRepository(prisma),
+    refreshTokens: createPrismaRefreshTokenRepository(prisma),
+  });
 
   let shuttingDown = false;
   async function shutdown(signal: NodeJS.Signals): Promise<void> {

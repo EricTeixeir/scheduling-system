@@ -34,11 +34,13 @@ export class ValidationError extends AppError {
   }
 }
 
+export type UnauthenticatedCode = Extract<ErrorCode, 'UNAUTHENTICATED' | 'REFRESH_RACE'>;
+
 export class UnauthenticatedError extends AppError {
   override readonly name = 'UnauthenticatedError';
 
-  constructor(detail?: string) {
-    super(401, 'UNAUTHENTICATED', { detail });
+  constructor(detail?: string, code: UnauthenticatedCode = 'UNAUTHENTICATED') {
+    super(401, code, { detail });
   }
 }
 

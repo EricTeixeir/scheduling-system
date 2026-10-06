@@ -30,6 +30,7 @@ export interface Config {
   readonly trustedProxies: readonly string[];
   readonly bodyLimitBytes: number;
   readonly rateLimitMax: number;
+  readonly demoMode: boolean;
 }
 
 function integer(fallback: number, min: number, max: number) {
@@ -67,6 +68,13 @@ function isProxyAddress(entry: string): boolean {
   if (prefix === undefined) return true;
   const maxPrefix = version === 4 ? 32 : 128;
   return /^\d{1,3}$/.test(prefix) && Number(prefix) <= maxPrefix;
+}
+
+function boolean(fallback: boolean) {
+  return z
+    .enum(['true', 'false'], { error: 'must be true or false' })
+    .default(fallback ? 'true' : 'false')
+    .transform((value) => value === 'true');
 }
 
 function commaList(fallback: string) {
@@ -121,6 +129,7 @@ const envSchema = z.object({
   ),
   BODY_LIMIT_BYTES: integer(16_384, 1_024, 1_048_576),
   RATE_LIMIT_MAX: integer(100, 1, 100_000),
+  DEMO_MODE: boolean(false),
 });
 
 type ParsedEnv = z.output<typeof envSchema>;
@@ -170,6 +179,11 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
         `Refusing to start in production with development secrets. Set real values for:\n${bulletList(offenders)}`,
       );
     }
+    if (parsed.DEMO_MODE) {
+      throw new ConfigError(
+        'Refusing to start in production with DEMO_MODE=true: it publishes demo credentials. Set DEMO_MODE=false.',
+      );
+    }
   }
 
   return Object.freeze({
@@ -189,5 +203,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     trustedProxies: Object.freeze(parsed.TRUST_PROXY.filter((entry) => entry !== 'none')),
     bodyLimitBytes: parsed.BODY_LIMIT_BYTES,
     rateLimitMax: parsed.RATE_LIMIT_MAX,
+    demoMode: parsed.DEMO_MODE,
   });
 }
