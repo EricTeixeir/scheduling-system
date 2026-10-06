@@ -83,7 +83,6 @@ export async function buildApp({
     prefix: '/api/auth',
     service: authService,
     guards,
-    demoMode: config.demoMode,
   });
 
   return app;

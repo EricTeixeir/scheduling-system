@@ -1,10 +1,4 @@
-import {
-  demoAccountsResponseSchema,
-  EMAIL_MAX_LENGTH,
-  loginSchema,
-  registerSchema,
-  userSchema,
-} from '@scheduling/shared';
+import { EMAIL_MAX_LENGTH, loginSchema, registerSchema, userSchema } from '@scheduling/shared';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 
 import { RateLimitedError, UnauthenticatedError } from '../../errors/app-errors';
@@ -12,7 +6,6 @@ import { currentUser, type AuthGuards } from '../../http/auth-guards';
 import { parseInput } from '../../http/parse-input';
 import { clearSessionCookies, readRefreshTokenCookie, setSessionCookies } from './auth-cookies';
 import type { AuthService } from './auth.service';
-import { DEMO_NOTICE, DEMO_USERS } from './demo-accounts';
 
 export const LOGIN_ATTEMPTS_PER_EMAIL_PER_MINUTE = 5;
 export const LOGIN_REQUESTS_PER_IP_PER_MINUTE = 20;
@@ -27,7 +20,6 @@ const REFRESH_RACE_DETAIL =
 export interface AuthRoutesOptions {
   readonly service: AuthService;
   readonly guards: AuthGuards;
-  readonly demoMode: boolean;
 }
 
 function perIpLimit(max: number) {
@@ -43,10 +35,7 @@ function loginAttemptKey(request: FastifyRequest): string {
   return `${request.ip}|${email}`;
 }
 
-export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = (
-  app,
-  { service, guards, demoMode },
-) => {
+export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = (app, { service, guards }) => {
   // A second route-level limiter would be skipped: @fastify/rate-limit runs only the first one
   // per request. createRateLimit has no such guard, so it stacks on top of the per-IP limit.
   const checkLoginAttempts = app.createRateLimit({
@@ -110,12 +99,6 @@ export const authRoutes: FastifyPluginAsync<AuthRoutesOptions> = (
   app.get('/me', { preHandler: guards.requireAuth }, (request) =>
     userSchema.parse(currentUser(request)),
   );
-
-  if (demoMode) {
-    app.get('/demo-accounts', () =>
-      demoAccountsResponseSchema.parse({ notice: DEMO_NOTICE, accounts: DEMO_USERS }),
-    );
-  }
 
   return Promise.resolve();
 };

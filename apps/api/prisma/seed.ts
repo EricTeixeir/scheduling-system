@@ -1,8 +1,8 @@
 import { loadConfig } from '../src/config/env.js';
 import type { PrismaClient } from '../src/infra/db/generated/client.js';
 import { createPrismaClient } from '../src/infra/db/prisma-client.js';
-import { DEMO_USERS } from '../src/modules/auth/demo-accounts.js';
 import { createPasswordHasher } from '../src/modules/auth/password-hasher.js';
+import { planSeedAccounts, type SeedAccount } from '../src/modules/auth/seed-accounts.js';
 
 interface WeeklyHours {
   weekday: number;
@@ -44,33 +44,32 @@ async function seedAvailability(prisma: PrismaClient): Promise<void> {
   console.log(`Seeded ${String(WEEKLY_HOURS.length)} availability rules.`);
 }
 
-// Create-if-missing only: an existing account (even one with a demo email) keeps its password.
-async function seedDemoUsers(prisma: PrismaClient): Promise<void> {
+// Create-if-missing only: an existing account keeps its password and role.
+async function seedAccounts(prisma: PrismaClient, accounts: readonly SeedAccount[]): Promise<void> {
   const hasher = createPasswordHasher();
-  let created = 0;
-  for (const { name, email, password, role } of DEMO_USERS) {
+  for (const { name, email, password, role } of accounts) {
     const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-    if (existing !== null) continue;
+    if (existing !== null) {
+      console.log(`${role} account ${email} already exists: left unchanged.`);
+      continue;
+    }
     await prisma.user.create({
       data: { name, email, role, passwordHash: await hasher.hash(password) },
     });
-    created += 1;
+    console.log(`${role} account ${email} created.`);
   }
-  console.log(
-    `Demo users: ${String(created)} created, ${String(DEMO_USERS.length - created)} already present.`,
-  );
 }
 
 async function seed(): Promise<void> {
   const config = loadConfig(process.env);
+  const plan = planSeedAccounts(process.env);
   const prisma = createPrismaClient(config.databaseUrl);
   try {
     await seedAvailability(prisma);
-    if (config.demoMode) {
-      await seedDemoUsers(prisma);
-    } else {
-      console.log('DEMO_MODE is off: demo users skipped.');
+    for (const role of plan.skipped) {
+      console.log(`SEED_${role}_EMAIL / SEED_${role}_PASSWORD not set: ${role} account skipped.`);
     }
+    await seedAccounts(prisma, plan.accounts);
   } finally {
     await prisma.$disconnect();
   }

@@ -39,7 +39,6 @@ describe('loadConfig', () => {
       trustedProxies: ['loopback', 'uniquelocal'],
       bodyLimitBytes: 16_384,
       rateLimitMax: 100,
-      demoMode: false,
     });
   });
 
@@ -59,7 +58,6 @@ describe('loadConfig', () => {
       TRUST_PROXY: '10.0.0.0/8, ::1, 172.18.0.5',
       BODY_LIMIT_BYTES: '2048',
       RATE_LIMIT_MAX: '5',
-      DEMO_MODE: 'true',
       PATH: '/usr/bin',
     });
     expect(config).toMatchObject({
@@ -74,7 +72,6 @@ describe('loadConfig', () => {
       trustedProxies: ['10.0.0.0/8', '::1', '172.18.0.5'],
       bodyLimitBytes: 2048,
       rateLimitMax: 5,
-      demoMode: true,
     });
     expect(config).not.toHaveProperty('PATH');
   });
@@ -119,7 +116,6 @@ describe('loadConfig', () => {
     ['TRUST_PROXY', '10.0.0.0/33'],
     ['TRUST_PROXY', '10.0.0.0/8/1'],
     ['BODY_LIMIT_BYTES', '77'],
-    ['DEMO_MODE', 'yes'],
   ])('rejects %s=%s naming the variable but not the value', (name, value) => {
     const message = configError({ DATABASE_URL, [name]: value });
     expect(message).toContain(`${name}:`);
@@ -163,22 +159,6 @@ describe('loadConfig', () => {
 
     it('requires JWT_SECRET instead of falling back to the development one', () => {
       expect(configError({ ...production, DATABASE_URL })).toContain('JWT_SECRET (not set)');
-    });
-
-    it('refuses DEMO_MODE=true', () => {
-      expect(
-        configError({ ...production, DATABASE_URL, JWT_SECRET: REAL_SECRET, DEMO_MODE: 'true' }),
-      ).toContain('DEMO_MODE=true');
-    });
-
-    it('starts with DEMO_MODE=false', () => {
-      const config = loadConfig({
-        ...production,
-        DATABASE_URL,
-        JWT_SECRET: REAL_SECRET,
-        DEMO_MODE: 'false',
-      });
-      expect(config.demoMode).toBe(false);
     });
   });
 });
