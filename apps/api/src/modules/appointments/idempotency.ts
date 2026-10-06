@@ -13,7 +13,9 @@ export class IdempotencyKeyTakenError extends Error {
 }
 
 // Equivalent bodies hash the same: the instant is normalized to UTC and absent notes equal null.
-export function requestHashOf({ startsAt, notes }: CreateAppointmentOutput): string {
+export type BookingInput = CreateAppointmentOutput;
+
+export function requestHashOf({ startsAt, notes }: BookingInput): string {
   const canonical = JSON.stringify({
     startsAt: new Date(startsAt).toISOString(),
     notes: notes ?? null,
