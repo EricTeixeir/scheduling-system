@@ -1,11 +1,23 @@
+import cookie from '@fastify/cookie';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 
 import type { Config } from './config/env';
+import type { Clock } from './domain/time/clock';
+import { registerAuthGuards } from './http/auth-guards';
 import { requireCsrfHeader } from './http/csrf';
 import { handleError, replyNotFound } from './http/error-handler';
 import { echoRequestId, generateRequestId } from './http/request-id';
 import { registerSecurityPlugins } from './http/security-plugins';
 import type { DatabaseClient } from './infra/db/prisma-client';
+import { createAccessTokens } from './modules/auth/access-token';
+import { readAccessTokenCookie } from './modules/auth/auth-cookies';
+import type {
+  PasswordHasher,
+  RefreshTokenRepository,
+  UserRepository,
+} from './modules/auth/auth.ports';
+import { authRoutes } from './modules/auth/auth.routes';
+import { createAuthService } from './modules/auth/auth.service';
 import { healthRoutes } from './routes/health';
 
 const CONNECTION_TIMEOUT_MS = 15_000;
@@ -15,12 +27,20 @@ export interface AppDependencies {
   readonly config: Config;
   readonly prisma: DatabaseClient;
   readonly logger: FastifyBaseLogger;
+  readonly clock: Clock;
+  readonly passwordHasher: PasswordHasher;
+  readonly users: UserRepository;
+  readonly refreshTokens: RefreshTokenRepository;
 }
 
 export async function buildApp({
   config,
   prisma,
   logger,
+  clock,
+  passwordHasher,
+  users,
+  refreshTokens,
 }: AppDependencies): Promise<FastifyInstance> {
   const app = Fastify({
     loggerInstance: logger,
@@ -44,8 +64,27 @@ export async function buildApp({
   await registerSecurityPlugins(app, config);
   app.addHook('onRequest', requireCsrfHeader);
   app.setNotFoundHandler({ preHandler: app.rateLimit() }, replyNotFound);
+  await app.register(cookie);
+
+  const authService = createAuthService({
+    users,
+    refreshTokens,
+    passwordHasher,
+    accessTokens: createAccessTokens({ secret: config.jwtSecret, clock }),
+    clock,
+  });
+  const guards = registerAuthGuards(app, async (request) => {
+    const accessToken = readAccessTokenCookie(request);
+    return accessToken === undefined ? undefined : authService.authenticate(accessToken);
+  });
 
   await app.register(healthRoutes, { prefix: '/api', prisma });
+  await app.register(authRoutes, {
+    prefix: '/api/auth',
+    service: authService,
+    guards,
+    demoMode: config.demoMode,
+  });
 
   return app;
 }

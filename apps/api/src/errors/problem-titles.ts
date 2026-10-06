@@ -16,6 +16,7 @@ const PROBLEM_TITLES: Readonly<Record<ErrorCode, string>> = {
   CONFLICT: 'Conflito com o estado atual do recurso',
   VALIDATION_FAILED: 'Dados inválidos',
   UNAUTHENTICATED: 'Autenticação necessária',
+  REFRESH_RACE: 'Sessão renovada por outra aba',
   FORBIDDEN: 'Acesso negado',
   NOT_FOUND: 'Recurso não encontrado',
   PAYLOAD_TOO_LARGE: 'Requisição grande demais',

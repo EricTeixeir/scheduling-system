@@ -14,14 +14,17 @@
   },
   "dependencies": {
     "@date-fns/tz": "1.5.0",
+    "@fastify/cookie": "11.1.2",
     "@fastify/cors": "11.3.0",
     "@fastify/helmet": "13.1.1",
     "@fastify/rate-limit": "11.2.0",
+    "@node-rs/argon2": "2.2.1",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "@scheduling/shared": "0.1.0",
     "date-fns": "4.4.0",
     "fastify": "5.12.5",
+    "jose": "6.2.12",
     "pg": "8.23.1",
     "pino": "10.4.0",
     "zod": "4.6.5"

@@ -65,6 +65,7 @@ describe('AppError responses', () => {
       'VALIDATION_FAILED',
     ],
     [new UnauthenticatedError(), 401, 'UNAUTHENTICATED'],
+    [new UnauthenticatedError(undefined, 'REFRESH_RACE'), 401, 'REFRESH_RACE'],
     [new ForbiddenError(), 403, 'FORBIDDEN'],
     [new ForbiddenError('ACTOR_NOT_ALLOWED'), 403, 'ACTOR_NOT_ALLOWED'],
     [new NotFoundError(), 404, 'NOT_FOUND'],

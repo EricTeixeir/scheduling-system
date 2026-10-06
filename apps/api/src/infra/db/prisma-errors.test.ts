@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { AppError, ConflictError, NotFoundError } from '../../errors/app-errors';
 import { Prisma } from './generated/client.js';
-import { mapPrismaError } from './prisma-errors';
+import { isUniqueViolation, mapPrismaError } from './prisma-errors';
 
 const LEAKY_MESSAGE = 'Failing row contains (ana@example.com, $argon2id$secret-hash)';
 
@@ -88,5 +88,23 @@ describe('mapPrismaError', () => {
     const error = new Error('boom');
     expect(mapPrismaError(error)).toBe(error);
     expect(mapPrismaError('text')).toBe('text');
+  });
+});
+
+describe('isUniqueViolation', () => {
+  it.each([
+    ['P2002', undefined],
+    ['P2002', '23505'],
+    ['P2039', '23505'],
+  ])('recognizes %s / %s', (code, state) => {
+    expect(isUniqueViolation(knownError(code, state))).toBe(true);
+  });
+
+  it.each([
+    ['an exclusion violation', knownError('P2039', '23P01')],
+    ['a missing record', knownError('P2025')],
+    ['a plain error', new Error('P2002')],
+  ])('rejects %s', (_label, error) => {
+    expect(isUniqueViolation(error)).toBe(false);
   });
 });

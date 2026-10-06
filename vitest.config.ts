@@ -15,7 +15,14 @@ export default defineConfig({
       include: ['apps/*/src/**', 'packages/*/src/**'],
       // Test helpers and generated Prisma Client are not our production code. server.ts is the
       // process bootstrap (listen, signals, exit) and is exercised by running the API, not by tests.
-      exclude: ['**/src/test/**', 'apps/api/src/infra/db/generated/**', 'apps/api/src/server.ts'],
+      // *.repository.ts are thin Prisma queries whose behavior is the SQL itself; they are verified
+      // against a real PostgreSQL (migration + seed + end-to-end smoke), not with mocks.
+      exclude: [
+        '**/src/test/**',
+        'apps/api/src/infra/db/generated/**',
+        'apps/api/src/server.ts',
+        'apps/api/src/modules/**/*.repository.ts',
+      ],
       // Per-glob gates: the run fails when a covered area drops below its floor.
       thresholds: {
         'apps/api/src/domain/**': {
@@ -36,7 +43,12 @@ export default defineConfig({
           branches: 80,
           statements: 80,
         },
-        // 'apps/api/src/services/**': same floors, added with the service layer.
+        'apps/api/src/modules/**': {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
+        },
       },
     },
   },
