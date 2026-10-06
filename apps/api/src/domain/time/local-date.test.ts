@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assertValidTimeZone,
   localDateOf,
+  localDayRange,
   parseLocalDate,
   weekdayOf,
   zonedInstant,
@@ -86,5 +87,26 @@ describe('zonedInstant', () => {
   it('throws on an invalid date or time zone', () => {
     expect(() => zonedInstant('2026-02-30', 0, SAO_PAULO)).toThrow('YYYY-MM-DD');
     expect(() => zonedInstant('2026-10-05', 0, 'Nope/Zone')).toThrow('unknown time zone');
+  });
+});
+
+describe('localDayRange', () => {
+  it('spans local midnight to the next local midnight', () => {
+    const range = localDayRange('2026-10-05', SAO_PAULO);
+    expect(iso(range.startsAt)).toBe('2026-10-05T03:00:00.000Z');
+    expect(iso(range.endsAt)).toBe('2026-10-06T03:00:00.000Z');
+  });
+
+  it('crosses month and year ends', () => {
+    expect(iso(localDayRange('2026-12-31', 'UTC').endsAt)).toBe('2027-01-01T00:00:00.000Z');
+  });
+
+  it('is 23 hours long on a spring-forward day', () => {
+    const range = localDayRange('2026-03-08', 'America/New_York');
+    expect((range.endsAt.getTime() - range.startsAt.getTime()) / 3_600_000).toBe(23);
+  });
+
+  it('throws on an invalid date', () => {
+    expect(() => localDayRange('2026-02-30', SAO_PAULO)).toThrow('YYYY-MM-DD');
   });
 });
