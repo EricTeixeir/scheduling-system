@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
+import { consecutiveDays } from '@/lib/time/local-date';
 import { ADMIN_USER, createFetchMock, jsonResponse, problemResponse } from '@/test/fetch-mock';
 import { fixedClock, renderApp } from '@/test/render-app';
 
@@ -10,6 +11,15 @@ const NOW = fixedClock('2026-10-07T15:00:00.000Z');
 const ID = '5b1e6a4c-2d3f-4a5b-8c6d-7e8f9a0b1c2d';
 const FROM_TODAY = 'GET /admin/appointments?page=1&pageSize=20&from=2026-10-07';
 const STATUS = `POST /admin/appointments/${ID}/status`;
+const SUMMARY = 'GET /admin/appointments/summary';
+
+const summary = {
+  todayConfirmed: 3,
+  next7DaysConfirmed: 12,
+  completedLast30Days: 40,
+  noShowLast30Days: 2,
+  cancelledLast30Days: 5,
+};
 
 type Handler = () => Response | Promise<Response>;
 
@@ -37,10 +47,14 @@ function page(items: AdminAppointment[], total = items.length) {
   return () => jsonResponse({ items, page: 1, pageSize: 20, total });
 }
 
-function setup(routes: Record<string, Handler | Handler[]>) {
+function setup(routes: Record<string, Handler | Handler[]>, path = '/admin') {
   const user = userEvent.setup();
-  const mock = createFetchMock({ 'GET /auth/me': () => jsonResponse(ADMIN_USER), ...routes });
-  const view = renderApp({ path: '/admin', fetch: mock.fetch, clock: NOW });
+  const mock = createFetchMock({
+    'GET /auth/me': () => jsonResponse(ADMIN_USER),
+    [SUMMARY]: () => jsonResponse(summary),
+    ...routes,
+  });
+  const view = renderApp({ path, fetch: mock.fetch, clock: NOW });
   return { user, ...mock, ...view };
 }
 
@@ -68,6 +82,66 @@ describe('AdminAppointmentsPage', () => {
     expect(within(card).getByText('Confirmado')).toBeVisible();
     expect(screen.getByText('Página 1 de 3')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
+  });
+
+  it('shows the summary cards', async () => {
+    setup({ [FROM_TODAY]: page([]) });
+
+    const stats = within(await screen.findByLabelText('Resumo'))
+      .getAllByRole('term')
+      .map((term) => `${term.textContent}: ${term.nextElementSibling?.textContent ?? ''}`);
+    expect(stats).toEqual([
+      'Hoje: 3',
+      'Próximos 7 dias: 12',
+      'Concluídos 30d: 40',
+      'Faltas 30d: 2',
+      'Cancelados 30d: 5',
+    ]);
+  });
+
+  it('keeps the page usable when the summary fails, with a quiet retry', async () => {
+    const { user } = setup({
+      [FROM_TODAY]: page([started]),
+      [SUMMARY]: [() => problemResponse(403, { code: 'FORBIDDEN' }), () => jsonResponse(summary)],
+    });
+
+    expect(await screen.findByText('Resumo indisponível.')).toBeVisible();
+    expect(await cardOf('Maria Silva')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Recarregar' }));
+
+    expect(await screen.findByLabelText('Resumo')).toBeVisible();
+  });
+
+  it('shows a friendly empty state', async () => {
+    setup({ [FROM_TODAY]: page([]) });
+
+    expect(await screen.findByText('Nenhum agendamento por aqui')).toBeVisible();
+  });
+
+  it('keeps the chosen view in the URL', async () => {
+    const { user, router } = setup(
+      {
+        [FROM_TODAY]: page([started]),
+        ...Object.fromEntries(
+          consecutiveDays('2026-10-07', 7).map((date) => [
+            `GET /availability?date=${date}`,
+            () => jsonResponse({ date, timeZone: 'America/Sao_Paulo', slots: [] }),
+          ]),
+        ),
+      },
+      '/admin?visao=disponiveis',
+    );
+
+    expect(await screen.findByRole('tab', { name: 'Disponíveis' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    expect(await screen.findByText('Sem horários neste dia')).toBeVisible();
+
+    await user.click(screen.getByRole('tab', { name: 'Agendados' }));
+
+    expect(router.state.location.search).toBe('?visao=agendados');
+    expect(await cardOf('Maria Silva')).toBeVisible();
   });
 
   it('completes an appointment and refreshes the list', async () => {
