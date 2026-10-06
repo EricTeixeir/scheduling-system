@@ -18,7 +18,10 @@
     "format:check": "prettier --check .",
     "test:unit": "npm run test:unit --workspaces --if-present",
     "test:coverage": "vitest run --coverage",
-    "prepare": "husky"
+    "prepare": "husky",
+    "dev:db": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait db",
+    "dev:api": "npm run db:migrate:deploy -w @scheduling/api && npm run db:seed -w @scheduling/api && npm run dev -w @scheduling/api",
+    "dev:web": "npm run dev -w @scheduling/web"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs}": [

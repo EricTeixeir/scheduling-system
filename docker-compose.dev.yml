@@ -1,0 +1,7 @@
+# Local development only: `npm run dev:db`. Publishes PostgreSQL on the loopback
+# interface so the API can run on the host with hot reload. The main
+# docker-compose.yml never publishes the database port.
+services:
+  db:
+    ports:
+      - '127.0.0.1:5433:5432'
