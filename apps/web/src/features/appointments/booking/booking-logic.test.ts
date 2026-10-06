@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createAttemptKeys } from './attempt-keys';
 import { groupSlotsByPeriod } from './day-periods';
+import { gridSlotsOf } from './grid-slots';
 import {
   canGoToPreviousWeek,
   selectDay,
@@ -100,5 +101,29 @@ describe('createAttemptKeys', () => {
     keys.reset();
 
     expect(keys.keyFor('slot-a|')).toBe('k2');
+  });
+});
+
+describe('gridSlotsOf', () => {
+  it('merges my confirmed appointments of the day with the free slots, in time order', () => {
+    const mine = {
+      id: '5b1e6a4c-2d3f-4a5b-8c6d-7e8f9a0b1c2d',
+      ...slotAt(10),
+      status: 'CONFIRMED' as const,
+      notes: null,
+      createdAt: '2026-10-01T12:00:00.000Z',
+    };
+    const otherDay = { ...mine, id: 'other', startsAt: '2026-10-08T13:00:00.000Z' };
+    const cancelled = { ...mine, id: 'cancelled', status: 'CANCELLED' as const };
+
+    const slots = gridSlotsOf(
+      [slotAt(9), slotAt(11)],
+      [mine, otherDay, cancelled],
+      '2026-10-07',
+      SAO_PAULO,
+    );
+
+    expect(slots.map((slot) => slot.kind)).toEqual(['free', 'mine', 'free']);
+    expect(slots[1]).toMatchObject({ kind: 'mine', appointmentId: mine.id });
   });
 });

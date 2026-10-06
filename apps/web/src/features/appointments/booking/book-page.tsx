@@ -1,9 +1,8 @@
-import type { Slot } from '@scheduling/shared';
+import type { Appointment, Slot } from '@scheduling/shared';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 
-import { PATHS } from '@/app/navigation';
 import { isApiError } from '@/lib/api/api-error';
 import { messageFor } from '@/lib/errors/messages';
 import { BUSINESS_TIME_ZONE } from '@/lib/time/business-time-zone';
@@ -11,6 +10,8 @@ import { useClock } from '@/lib/time/clock';
 import { formatDayTitle } from '@/lib/time/format';
 import { addDays, localDateOf } from '@/lib/time/local-date';
 
+import { myAppointmentsHighlighting } from '../my-appointments/highlight';
+import { useMyAppointments } from '../my-appointments/use-my-appointments';
 import { appointmentWhen } from '../shared/appointment-format';
 import { createAttemptKeys } from './attempt-keys';
 import { BookingConfirmation } from './booking-confirmation';
@@ -25,7 +26,13 @@ import {
 } from './day-selection';
 import { DaySlots, type DaySlotsState } from './day-slots';
 import { DayStrip } from './day-strip';
+import { gridSlotsOf } from './grid-slots';
 import { useAvailability, useAvailabilityOfDays, useBookAppointment } from './use-booking';
+
+function useMyUpcomingAppointments(): readonly Appointment[] {
+  const upcoming = useMyAppointments('upcoming');
+  return upcoming.data?.pages.flatMap((page) => page.items) ?? [];
+}
 
 function useSelectedDayState(selection: DaySelection): {
   readonly state: DaySlotsState;
@@ -33,6 +40,7 @@ function useSelectedDayState(selection: DaySelection): {
   readonly retry: () => void;
 } {
   const availability = useAvailability(selection.selected);
+  const myAppointments = useMyUpcomingAppointments();
   const timeZone = availability.data?.timeZone ?? BUSINESS_TIME_ZONE;
   const retry = () => {
     void availability.refetch();
@@ -41,7 +49,8 @@ function useSelectedDayState(selection: DaySelection): {
   if (availability.isError) {
     return { state: { status: 'error', message: messageFor(availability.error) }, timeZone, retry };
   }
-  const groups = groupSlotsByPeriod(availability.data.slots, timeZone);
+  const slots = gridSlotsOf(availability.data.slots, myAppointments, selection.selected, timeZone);
+  const groups = groupSlotsByPeriod(slots, timeZone);
   return { state: { status: 'ready', groups, timeZone }, timeZone, retry };
 }
 
@@ -62,14 +71,14 @@ function useBookingFlow() {
     booking.mutate(
       { ...request, idempotencyKey },
       {
-        onSuccess: () => {
+        onSuccess: (appointment) => {
           setChosenSlot(null);
           toast.success('Agendamento confirmado', {
             description: appointmentWhen(slot, timeZone),
             action: {
               label: 'Ver meus agendamentos',
               onClick: () => {
-                void navigate(PATHS.myAppointments);
+                void navigate(myAppointmentsHighlighting(appointment.id));
               },
             },
           });
@@ -84,6 +93,9 @@ function useBookingFlow() {
   return {
     chosenSlot,
     choose,
+    openMine: (appointmentId: string) => {
+      void navigate(myAppointmentsHighlighting(appointmentId));
+    },
     confirm,
     dismiss: () => {
       setChosenSlot(null);
@@ -138,7 +150,9 @@ export function BookPage() {
           </h2>
           <DaySlots
             state={selectedDay.state}
+            selectedStartsAt={chosenSlot?.startsAt ?? null}
             onSelectSlot={flow.choose}
+            onOpenMine={flow.openMine}
             onRetry={selectedDay.retry}
             onNextDay={() => {
               setSelection((current) => selectDay(current, addDays(current.selected, 1)));

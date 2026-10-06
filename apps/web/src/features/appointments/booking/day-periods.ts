@@ -17,12 +17,19 @@ export const DAY_PERIODS: readonly DayPeriod[] = [
   { id: 'evening', label: 'Noite', icon: Moon, fromHour: 18, untilHour: 24 },
 ];
 
-export interface SlotGroup {
+export type GridSlot =
+  | (Slot & { readonly kind: 'free' })
+  | (Slot & { readonly kind: 'mine'; readonly appointmentId: string });
+
+export interface SlotGroup<T extends Slot = GridSlot> {
   readonly period: DayPeriod;
-  readonly slots: readonly Slot[];
+  readonly slots: readonly T[];
 }
 
-export function groupSlotsByPeriod(slots: readonly Slot[], timeZone: string): SlotGroup[] {
+export function groupSlotsByPeriod<T extends Slot>(
+  slots: readonly T[],
+  timeZone: string,
+): SlotGroup<T>[] {
   return DAY_PERIODS.map((period) => ({
     period,
     slots: slots.filter((slot) => {

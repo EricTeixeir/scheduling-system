@@ -13,6 +13,7 @@ import { useClock } from '@/lib/time/clock';
 import type { AppointmentAction } from '../shared/appointment-action';
 import { AppointmentActions } from '../shared/appointment-actions';
 import { AppointmentList, AppointmentListSkeleton } from './appointment-list';
+import { HIGHLIGHT_PARAM } from './highlight';
 import { useClientAppointmentActions } from './client-appointment-actions';
 import { useMyAppointments } from './use-my-appointments';
 
@@ -52,6 +53,7 @@ function scopeFromSlug(slug: string | null): AppointmentScope {
 export function MyAppointmentsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeScope = scopeFromSlug(searchParams.get(SCOPE_PARAM));
+  const highlightedId = searchParams.get(HIGHLIGHT_PARAM);
   const actions = useClientAppointmentActions();
 
   return (
@@ -91,7 +93,7 @@ export function MyAppointmentsPage() {
         </TabsList>
         {APPOINTMENT_SCOPES.map((scope) => (
           <TabsContent key={scope} value={scope}>
-            <ScopedAppointments scope={scope} actions={actions} />
+            <ScopedAppointments scope={scope} actions={actions} highlightedId={highlightedId} />
           </TabsContent>
         ))}
       </Tabs>
@@ -106,9 +108,10 @@ function scopeFromValue(value: string): AppointmentScope {
 interface ScopedAppointmentsProps {
   readonly scope: AppointmentScope;
   readonly actions: readonly AppointmentAction[];
+  readonly highlightedId: string | null;
 }
 
-function ScopedAppointments({ scope, actions }: ScopedAppointmentsProps) {
+function ScopedAppointments({ scope, actions, highlightedId }: ScopedAppointmentsProps) {
   const clock = useClock();
   const appointments = useMyAppointments(scope);
 
@@ -162,6 +165,7 @@ function ScopedAppointments({ scope, actions }: ScopedAppointmentsProps) {
       <AppointmentList
         appointments={items}
         timeZone={BUSINESS_TIME_ZONE}
+        highlightedId={highlightedId}
         renderActions={(appointment) => (
           <AppointmentActions appointment={appointment} actions={actions} now={now} />
         )}

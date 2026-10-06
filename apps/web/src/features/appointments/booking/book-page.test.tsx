@@ -28,6 +28,11 @@ function availability(date: LocalDate, times: readonly string[]): Handler {
 }
 
 const DEFAULT_TIMES = ['10:00', '14:00', '19:00'];
+const UPCOMING = 'GET /appointments?scope=upcoming&page=1&pageSize=20';
+
+function upcoming(items: Appointment[] = []): Handler {
+  return () => jsonResponse({ items, page: 1, pageSize: 20, total: items.length });
+}
 
 function twoWeeksOfAvailability(overrides: Record<string, Handler | Handler[]> = {}) {
   const routes: Record<string, Handler | Handler[]> = {};
@@ -50,7 +55,11 @@ function bookedAppointment(slot: Slot, notes: string | null = null): Appointment
 
 function setup(routes: Record<string, Handler | Handler[]>) {
   const user = userEvent.setup();
-  const mock = createFetchMock({ 'GET /auth/me': () => jsonResponse(CLIENT_USER), ...routes });
+  const mock = createFetchMock({
+    'GET /auth/me': () => jsonResponse(CLIENT_USER),
+    [UPCOMING]: upcoming(),
+    ...routes,
+  });
   const view = renderApp({ path: '/agendar', fetch: mock.fetch, clock: NOW });
   return { user, ...mock, ...view };
 }
@@ -129,8 +138,6 @@ describe('BookPage', () => {
     const { user, callsTo, router } = setup(
       twoWeeksOfAvailability({
         'POST /appointments': () => jsonResponse(bookedAppointment(slot, 'Primeira vez'), 201),
-        'GET /appointments?scope=upcoming&page=1&pageSize=20': () =>
-          jsonResponse({ items: [], page: 1, pageSize: 20, total: 0 }),
       }),
     );
 
@@ -154,6 +161,31 @@ describe('BookPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver meus agendamentos' }));
     expect(router.state.location.pathname).toBe('/meus-agendamentos');
+    expect(router.state.location.search).toBe(`?destaque=${bookedAppointment(slot).id}`);
+  });
+
+  it('highlights the chosen slot while confirming', async () => {
+    const { user } = setup(twoWeeksOfAvailability());
+
+    await openSlot(user, '10:00');
+
+    expect(
+      screen.getByRole('button', { name: '10:00', pressed: true, hidden: true }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows my own appointments in the grid and opens them in my appointments', async () => {
+    const mine = bookedAppointment(slotOn(TODAY, '11:00'));
+    const { user, router } = setup(twoWeeksOfAvailability({ [UPCOMING]: upcoming([mine]) }));
+
+    await user.click(
+      await screen.findByRole('button', {
+        name: '11:00, seu agendamento. Ver em Meus agendamentos',
+      }),
+    );
+
+    expect(router.state.location.pathname).toBe('/meus-agendamentos');
+    expect(router.state.location.search).toBe(`?destaque=${mine.id}`);
   });
 
   it('closes and refreshes the slots when the slot was just taken (409 SLOT_TAKEN)', async () => {

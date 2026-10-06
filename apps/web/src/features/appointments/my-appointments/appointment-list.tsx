@@ -9,9 +9,15 @@ interface AppointmentListProps {
   readonly appointments: readonly Appointment[];
   readonly timeZone: string;
   readonly renderActions: (appointment: Appointment) => ReactNode;
+  readonly highlightedId?: string | null;
 }
 
-export function AppointmentList({ appointments, timeZone, renderActions }: AppointmentListProps) {
+export function AppointmentList({
+  appointments,
+  timeZone,
+  renderActions,
+  highlightedId = null,
+}: AppointmentListProps) {
   return (
     <ul className="grid gap-3 md:grid-cols-2">
       {appointments.map((appointment) => (
@@ -20,6 +26,7 @@ export function AppointmentList({ appointments, timeZone, renderActions }: Appoi
             appointment={appointment}
             timeZone={timeZone}
             actions={renderActions(appointment)}
+            highlighted={appointment.id === highlightedId}
           />
         </li>
       ))}

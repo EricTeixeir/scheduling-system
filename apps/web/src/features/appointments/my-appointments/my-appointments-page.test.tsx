@@ -58,6 +58,13 @@ async function cardFor(title: string) {
 }
 
 describe('MyAppointmentsPage', () => {
+  it('highlights the appointment named in the address', async () => {
+    setup({ [UPCOMING]: page([confirmed]) }, `/meus-agendamentos?destaque=${CONFIRMED_ID}`);
+
+    const card = await screen.findByRole('article', { current: true });
+    expect(card).toHaveTextContent('Trazer exames');
+  });
+
   it('lists upcoming appointments with status, time, notes and the cancel action', async () => {
     setup({ [UPCOMING]: page([confirmed, cancelledLater]) });
 

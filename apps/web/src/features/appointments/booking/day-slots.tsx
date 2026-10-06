@@ -15,12 +15,21 @@ export type DaySlotsState =
 
 interface DaySlotsProps {
   readonly state: DaySlotsState;
+  readonly selectedStartsAt: string | null;
   readonly onSelectSlot: (slot: Slot) => void;
+  readonly onOpenMine: (appointmentId: string) => void;
   readonly onRetry: () => void;
   readonly onNextDay: () => void;
 }
 
-export function DaySlots({ state, onSelectSlot, onRetry, onNextDay }: DaySlotsProps) {
+export function DaySlots({
+  state,
+  selectedStartsAt,
+  onSelectSlot,
+  onOpenMine,
+  onRetry,
+  onNextDay,
+}: DaySlotsProps) {
   if (state.status === 'pending') return <DaySlotsSkeleton />;
   if (state.status === 'error') {
     return (
@@ -47,7 +56,15 @@ export function DaySlots({ state, onSelectSlot, onRetry, onNextDay }: DaySlotsPr
       />
     );
   }
-  return <SlotGrid groups={state.groups} timeZone={state.timeZone} onSelect={onSelectSlot} />;
+  return (
+    <SlotGrid
+      groups={state.groups}
+      timeZone={state.timeZone}
+      selectedStartsAt={selectedStartsAt}
+      onSelect={onSelectSlot}
+      onOpenMine={onOpenMine}
+    />
+  );
 }
 
 function DaySlotsSkeleton() {

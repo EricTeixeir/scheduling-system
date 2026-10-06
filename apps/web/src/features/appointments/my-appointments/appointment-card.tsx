@@ -1,6 +1,8 @@
 import type { Appointment } from '@scheduling/shared';
 import { Clock, StickyNote } from 'lucide-react';
-import { useId, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
+
+import { cn } from '@/lib/utils';
 
 import { appointmentDayTitle, appointmentTimeRange } from '../shared/appointment-format';
 import { AppointmentStatusBadge } from '../shared/appointment-status-badge';
@@ -9,14 +11,31 @@ interface AppointmentCardProps {
   readonly appointment: Appointment;
   readonly timeZone: string;
   readonly actions?: ReactNode;
+  readonly highlighted?: boolean;
 }
 
-export function AppointmentCard({ appointment, timeZone, actions }: AppointmentCardProps) {
+export function AppointmentCard({
+  appointment,
+  timeZone,
+  actions,
+  highlighted = false,
+}: AppointmentCardProps) {
   const titleId = useId();
+  const ref = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (highlighted) ref.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [highlighted]);
+
   return (
     <article
+      ref={ref}
       aria-labelledby={titleId}
-      className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm sm:p-5"
+      aria-current={highlighted ? 'true' : undefined}
+      className={cn(
+        'flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm sm:p-5',
+        highlighted && 'border-primary ring-2 ring-primary/30',
+      )}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 space-y-1">
