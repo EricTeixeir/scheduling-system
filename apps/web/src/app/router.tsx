@@ -1,13 +1,14 @@
 import { createBrowserRouter, type RouteObject } from 'react-router';
 
 import { RouterErrorFallback } from '@/components/error-boundary/router-error-fallback';
-import { AdminPage } from '@/features/admin/admin-page';
+import { AdminAppointmentsPage } from '@/features/appointments/admin/admin-appointments-page';
 import { BookPage } from '@/features/appointments/booking/book-page';
 import { MyAppointmentsPage } from '@/features/appointments/my-appointments/my-appointments-page';
 import { AuthLayout } from '@/features/auth/auth-layout';
 import { LoginPage } from '@/features/auth/login-page';
 import { RegisterPage } from '@/features/auth/register-page';
 import { GuestOnly, HomeRedirect, RequireAuth, RequireRole } from '@/features/auth/route-guards';
+import { ScheduleBlocksPage } from '@/features/schedule-blocks/schedule-blocks-page';
 
 import { PATHS } from './navigation';
 import { NotFoundPage } from './pages/not-found-page';
@@ -45,7 +46,10 @@ export const routes: RouteObject[] = [
               },
               {
                 element: <RequireRole role="ADMIN" />,
-                children: [{ path: PATHS.admin, element: <AdminPage /> }],
+                children: [
+                  { path: PATHS.admin, element: <AdminAppointmentsPage /> },
+                  { path: PATHS.scheduleBlocks, element: <ScheduleBlocksPage /> },
+                ],
               },
             ],
           },

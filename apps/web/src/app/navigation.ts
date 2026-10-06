@@ -1,5 +1,11 @@
 import type { Role } from '@scheduling/shared';
-import { CalendarCheck, CalendarPlus, LayoutDashboard, type LucideIcon } from 'lucide-react';
+import {
+  CalendarCheck,
+  CalendarOff,
+  CalendarPlus,
+  LayoutDashboard,
+  type LucideIcon,
+} from 'lucide-react';
 
 export const PATHS = {
   home: '/',
@@ -8,6 +14,7 @@ export const PATHS = {
   book: '/agendar',
   myAppointments: '/meus-agendamentos',
   admin: '/admin',
+  scheduleBlocks: '/admin/bloqueios',
 } as const;
 
 export interface NavItem {
@@ -21,7 +28,10 @@ const NAV_ITEMS_BY_ROLE: Readonly<Record<Role, readonly NavItem[]>> = {
     { to: PATHS.book, label: 'Agendar', icon: CalendarPlus },
     { to: PATHS.myAppointments, label: 'Meus agendamentos', icon: CalendarCheck },
   ],
-  ADMIN: [{ to: PATHS.admin, label: 'Painel', icon: LayoutDashboard }],
+  ADMIN: [
+    { to: PATHS.admin, label: 'Agendamentos', icon: LayoutDashboard },
+    { to: PATHS.scheduleBlocks, label: 'Bloqueios', icon: CalendarOff },
+  ],
 };
 
 const HOME_BY_ROLE: Readonly<Record<Role, string>> = {
