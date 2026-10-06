@@ -8,6 +8,10 @@ import { createLogger } from '../logging/logger';
 import type { PasswordHasher } from '../modules/auth/auth.ports';
 import { createFakeClock } from './fake-clock';
 import {
+  createInMemorySchedulingStore,
+  type InMemorySchedulingStore,
+} from './in-memory-appointments';
+import {
   cheapestArgon2idHasher,
   createInMemoryRefreshTokenRepository,
   createInMemoryUserRepository,
@@ -37,6 +41,7 @@ export interface TestAppOptions {
   readonly passwordHasher?: PasswordHasher;
   readonly users?: InMemoryUserRepository;
   readonly refreshTokens?: InMemoryRefreshTokenRepository;
+  readonly scheduling?: InMemorySchedulingStore;
 }
 
 export function buildTestApp({
@@ -47,8 +52,10 @@ export function buildTestApp({
   passwordHasher,
   users,
   refreshTokens,
+  scheduling,
 }: TestAppOptions = {}): Promise<FastifyInstance> {
   const config = testConfig(env);
+  const store = scheduling ?? createInMemorySchedulingStore();
   return buildApp({
     config,
     prisma: prisma ?? healthyDatabase,
@@ -57,5 +64,7 @@ export function buildTestApp({
     passwordHasher: passwordHasher ?? cheapestArgon2idHasher,
     users: users ?? createInMemoryUserRepository(),
     refreshTokens: refreshTokens ?? createInMemoryRefreshTokenRepository(),
+    availability: store.availability,
+    appointments: store.repository,
   });
 }

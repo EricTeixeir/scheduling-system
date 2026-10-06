@@ -9,6 +9,9 @@ import { handleError, replyNotFound } from './http/error-handler';
 import { echoRequestId, generateRequestId } from './http/request-id';
 import { registerSecurityPlugins } from './http/security-plugins';
 import type { DatabaseClient } from './infra/db/prisma-client';
+import type { AppointmentRepository } from './modules/appointments/appointments.ports';
+import { appointmentsRoutes } from './modules/appointments/appointments.routes';
+import { createAppointmentsService } from './modules/appointments/appointments.service';
 import { createAccessTokens } from './modules/auth/access-token';
 import { readAccessTokenCookie } from './modules/auth/auth-cookies';
 import type {
@@ -18,6 +21,9 @@ import type {
 } from './modules/auth/auth.ports';
 import { authRoutes } from './modules/auth/auth.routes';
 import { createAuthService } from './modules/auth/auth.service';
+import type { AvailabilityRepository } from './modules/availability/availability.ports';
+import { availabilityRoutes } from './modules/availability/availability.routes';
+import { createAvailabilityService } from './modules/availability/availability.service';
 import { healthRoutes } from './routes/health';
 
 const CONNECTION_TIMEOUT_MS = 15_000;
@@ -31,6 +37,8 @@ export interface AppDependencies {
   readonly passwordHasher: PasswordHasher;
   readonly users: UserRepository;
   readonly refreshTokens: RefreshTokenRepository;
+  readonly availability: AvailabilityRepository;
+  readonly appointments: AppointmentRepository;
 }
 
 export async function buildApp({
@@ -41,6 +49,8 @@ export async function buildApp({
   passwordHasher,
   users,
   refreshTokens,
+  availability,
+  appointments,
 }: AppDependencies): Promise<FastifyInstance> {
   const app = Fastify({
     loggerInstance: logger,
@@ -82,6 +92,22 @@ export async function buildApp({
   await app.register(authRoutes, {
     prefix: '/api/auth',
     service: authService,
+    guards,
+  });
+
+  const businessRules = {
+    clock,
+    policy: config.bookingPolicy,
+    timeZone: config.businessTimezone,
+  };
+  await app.register(availabilityRoutes, {
+    prefix: '/api/availability',
+    service: createAvailabilityService({ availability, ...businessRules }),
+    guards,
+  });
+  await app.register(appointmentsRoutes, {
+    prefix: '/api/appointments',
+    service: createAppointmentsService({ appointments, schedule: availability, ...businessRules }),
     guards,
   });
 

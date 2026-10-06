@@ -118,3 +118,14 @@ export class ServiceUnavailableError extends AppError {
     super(503, 'SERVICE_UNAVAILABLE', { detail });
   }
 }
+
+export class IdempotencyKeyReusedError extends AppError {
+  override readonly name = 'IdempotencyKeyReusedError';
+
+  constructor() {
+    super(422, 'IDEMPOTENCY_KEY_REUSED', {
+      detail:
+        'Esta chave de idempotência já foi usada com outros dados. Gere uma nova chave para uma nova requisição.',
+    });
+  }
+}

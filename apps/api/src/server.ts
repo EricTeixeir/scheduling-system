@@ -3,9 +3,11 @@ import { ConfigError, loadConfig } from './config/env';
 import { systemClock } from './domain/time/clock';
 import { createPrismaClient } from './infra/db/prisma-client';
 import { createLogger } from './logging/logger';
+import { createPrismaAppointmentRepository } from './modules/appointments/appointments.repository';
 import { createPasswordHasher } from './modules/auth/password-hasher';
 import { createPrismaRefreshTokenRepository } from './modules/auth/refresh-token.repository';
 import { createPrismaUserRepository } from './modules/auth/user.repository';
+import { createPrismaAvailabilityRepository } from './modules/availability/availability.repository';
 
 const SHUTDOWN_GRACE_MS = 10_000;
 
@@ -21,6 +23,8 @@ async function main(): Promise<void> {
     passwordHasher: createPasswordHasher(),
     users: createPrismaUserRepository(prisma),
     refreshTokens: createPrismaRefreshTokenRepository(prisma),
+    availability: createPrismaAvailabilityRepository(prisma),
+    appointments: createPrismaAppointmentRepository(prisma),
   });
 
   let shuttingDown = false;

@@ -6,6 +6,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Config } from '../config/env';
 import { RateLimitedError } from '../errors/app-errors';
 import { CSRF_HEADER } from './csrf';
+import { IDEMPOTENCY_KEY_HEADER, IDEMPOTENT_REPLAY_HEADER } from './idempotency-key';
 import { REQUEST_ID_HEADER } from './request-id';
 
 export async function registerSecurityPlugins(app: FastifyInstance, config: Config): Promise<void> {
@@ -21,8 +22,8 @@ export async function registerSecurityPlugins(app: FastifyInstance, config: Conf
     origin: [...config.corsOrigins],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', CSRF_HEADER],
-    exposedHeaders: [REQUEST_ID_HEADER, 'Retry-After'],
+    allowedHeaders: ['Content-Type', CSRF_HEADER, IDEMPOTENCY_KEY_HEADER],
+    exposedHeaders: [REQUEST_ID_HEADER, 'Retry-After', IDEMPOTENT_REPLAY_HEADER],
     maxAge: 600,
   });
 

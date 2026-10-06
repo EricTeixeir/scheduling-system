@@ -13,6 +13,7 @@ const PROBLEM_TITLES: Readonly<Record<ErrorCode, string>> = {
   OUTSIDE_BUSINESS_HOURS: 'Fora do horário de atendimento',
   MISALIGNED: 'Horário fora da grade de atendimento',
   SLOT_TAKEN: 'Horário indisponível',
+  IDEMPOTENCY_KEY_REUSED: 'Chave de idempotência já usada em outra requisição',
   CONFLICT: 'Conflito com o estado atual do recurso',
   VALIDATION_FAILED: 'Dados inválidos',
   UNAUTHENTICATED: 'Autenticação necessária',
