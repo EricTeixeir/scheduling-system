@@ -102,3 +102,19 @@ export {
   type ProblemDetails,
   type ScheduleConflict,
 } from './errors/problem-details';
+
+export {
+  adminCreateAppointmentSchema,
+  type AdminCreateAppointmentInput,
+  type AdminCreateAppointmentOutput,
+} from './admin/admin-booking';
+export { adminSummarySchema, type AdminSummary } from './admin/admin-summary';
+export {
+  CLIENT_SEARCH_LIMIT,
+  clientSearchQuerySchema,
+  clientSearchResponseSchema,
+  clientSummarySchema,
+  type ClientSearchQueryInput,
+  type ClientSearchResponse,
+  type ClientSummary,
+} from './admin/clients';
