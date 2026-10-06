@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import {
   adminAppointmentsQuerySchema,
+  CLIENT_SEARCH_LIMIT,
   type AdminAppointmentsQueryInput,
   type AppointmentStatus,
 } from '@scheduling/shared';
@@ -14,9 +15,17 @@ import { createInMemoryAdminRepositories, type DirectoryEntry } from '../../test
 import { createInMemorySchedulingStore } from '../../test/in-memory-appointments';
 import { appointmentCreatedEvent } from '../appointments/appointment-audit';
 import type { AppointmentRecord } from '../appointments/appointments.ports';
-import { NOT_FOUND_DETAIL, type RequestContext } from '../appointments/appointments.service';
+import {
+  createBooking,
+  NOT_FOUND_DETAIL,
+  type RequestContext,
+} from '../appointments/appointments.service';
 import type { AdminAppointmentRepository } from './admin-appointments.ports';
-import { createAdminAppointmentsService, NOT_CONFIRMED_DETAIL } from './admin-appointments.service';
+import {
+  CLIENT_NOT_FOUND_DETAIL,
+  createAdminAppointmentsService,
+  NOT_CONFIRMED_DETAIL,
+} from './admin-appointments.service';
 
 const TIME_ZONE = 'America/Sao_Paulo';
 const MONDAY_9AM_LOCAL = '2026-10-05T12:00:00.000Z';
@@ -50,18 +59,22 @@ function row(
   };
 }
 
-function setup(override?: (base: AdminAppointmentRepository) => AdminAppointmentRepository) {
+function setup(
+  override?: (base: AdminAppointmentRepository) => AdminAppointmentRepository,
+  people: readonly DirectoryEntry[] = [MARIA, JOAO, ADMIN],
+) {
   const clock = createFakeClock(MONDAY_9AM_LOCAL);
   const store = createInMemorySchedulingStore();
-  const directory = new Map([MARIA, JOAO, ADMIN].map((entry) => [entry.id, entry]));
+  const directory = new Map(people.map((entry) => [entry.id, entry]));
   const { adminAppointments } = createInMemoryAdminRepositories(store, directory);
   const repository = override ? override(adminAppointments) : adminAppointments;
-  const service = createAdminAppointmentsService({
-    appointments: repository,
-    clock,
-    policy: DEFAULT_BOOKING_POLICY,
-    timeZone: TIME_ZONE,
+  const rules = { clock, policy: DEFAULT_BOOKING_POLICY, timeZone: TIME_ZONE };
+  const book = createBooking({
+    appointments: store.repository,
+    schedule: store.availability,
+    ...rules,
   });
+  const service = createAdminAppointmentsService({ appointments: repository, book, ...rules });
   const insert = (...rows: AppointmentRecord[]) => {
     for (const each of rows) store.appointments.set(each.id, each);
   };
@@ -352,5 +365,129 @@ describe('history', () => {
       },
     ]);
     await expect(service.history(appointment.id)).rejects.toThrow();
+  });
+});
+
+describe('create', () => {
+  const TUESDAY_10AM_UTC = '2026-10-06T13:00:00.000Z';
+
+  function bookFor(
+    service: ReturnType<typeof setup>['service'],
+    clientId: string,
+    idempotencyKey: string = randomUUID(),
+  ) {
+    return service.create(ADMIN_CONTEXT, {
+      idempotencyKey,
+      input: { clientId, startsAt: '2026-10-06T10:00:00-03:00', notes: 'Primeira consulta' },
+    });
+  }
+
+  it('books for the client, with the admin as the audit actor and key owner', async () => {
+    const { service, store } = setup();
+    const key = randomUUID();
+    const result = await bookFor(service, MARIA.id, key);
+
+    expect(result).toMatchObject({ status: 201, replayed: false });
+    expect(result.body).toMatchObject({
+      startsAt: TUESDAY_10AM_UTC,
+      endsAt: '2026-10-06T13:30:00.000Z',
+      status: 'CONFIRMED',
+      notes: 'Primeira consulta',
+      client: { id: MARIA.id, name: MARIA.name, email: MARIA.email },
+    });
+    expect(store.appointments.get(result.body.id)?.userId).toBe(MARIA.id);
+    expect(store.auditEvents).toMatchObject([
+      { action: 'APPOINTMENT_CREATED', actorId: ADMIN.id, actorRole: 'ADMIN' },
+    ]);
+    expect([...store.idempotencyKeys.values()]).toMatchObject([{ userId: ADMIN.id, key }]);
+  });
+
+  it('replays the same request with the client, and refuses the key for another client', async () => {
+    const { service, store } = setup();
+    const key = randomUUID();
+    const first = await bookFor(service, MARIA.id, key);
+    const replay = await bookFor(service, MARIA.id, key);
+    expect(replay).toEqual({ ...first, replayed: true });
+    expect(store.appointments.size).toBe(1);
+
+    const otherClient = await refusal(bookFor(service, JOAO.id, key));
+    expect(otherClient).toMatchObject({ status: 422, code: 'IDEMPOTENCY_KEY_REUSED' });
+  });
+
+  it.each([
+    ['an unknown id', randomUUID()],
+    ['an admin id', ADMIN.id],
+  ])('answers 404 for %s, booking nothing', async (_label, clientId) => {
+    const { service, store } = setup();
+    const error = await refusal(bookFor(service, clientId));
+    expect(error).toMatchObject({
+      status: 404,
+      code: 'NOT_FOUND',
+      detail: CLIENT_NOT_FOUND_DETAIL,
+    });
+    expect(store.appointments.size).toBe(0);
+    expect(store.auditEvents).toEqual([]);
+  });
+
+  it('applies the booking rules: a taken slot is 409 SLOT_TAKEN', async () => {
+    const { service, insert } = setup();
+    insert(row(JOAO, TUESDAY_10AM_UTC));
+    const error = await refusal(bookFor(service, MARIA.id));
+    expect(error).toMatchObject({ status: 409, code: 'SLOT_TAKEN' });
+  });
+
+  it('applies the booking rules: a closed date is refused', async () => {
+    const { service, store } = setup();
+    store.closedDates.add('2026-10-06');
+    const error = await refusal(bookFor(service, MARIA.id));
+    expect(error).toMatchObject({ status: 422, code: 'CLOSED_DATE' });
+  });
+});
+
+describe('searchClients', () => {
+  it('matches name or e-mail ignoring case, among clients only, ordered by name', async () => {
+    const { service } = setup();
+    expect(await service.searchClients('EXAMPLE.COM')).toEqual({
+      items: [{ id: MARIA.id, name: MARIA.name, email: MARIA.email }],
+    });
+    expect((await service.searchClients('o')).items.map((client) => client.name)).toEqual([
+      JOAO.name,
+      MARIA.name,
+    ]);
+    expect(await service.searchClients('admin')).toEqual({ items: [] });
+  });
+
+  it('returns at most CLIENT_SEARCH_LIMIT clients', async () => {
+    const many = Array.from({ length: CLIENT_SEARCH_LIMIT + 2 }, (_, index) =>
+      person(`Cliente ${String(index).padStart(2, '0')}`, `c${String(index)}@example.com`),
+    );
+    const { items } = await setup(undefined, many).service.searchClients('cliente');
+    expect(items).toHaveLength(CLIENT_SEARCH_LIMIT);
+    expect(items[0]?.name).toBe('Cliente 00');
+  });
+});
+
+describe('summary', () => {
+  it('counts by business-time-zone days around the fixed clock', async () => {
+    const { service, insert } = setup();
+    insert(
+      row(MARIA, '2026-10-05T04:00:00.000Z'),
+      row(MARIA, '2026-10-05T02:30:00.000Z'),
+      row(MARIA, '2026-10-05T13:00:00.000Z'),
+      row(JOAO, '2026-10-12T02:59:00.000Z'),
+      row(JOAO, '2026-10-12T03:00:00.000Z'),
+      row(MARIA, '2026-09-06T03:00:00.000Z', 'COMPLETED'),
+      row(MARIA, '2026-09-06T02:59:00.000Z', 'COMPLETED'),
+      row(JOAO, '2026-10-05T11:00:00.000Z', 'NO_SHOW'),
+      row(JOAO, '2026-10-05T15:00:00.000Z', 'CANCELLED'),
+      row(JOAO, '2026-10-06T13:00:00.000Z', 'CANCELLED'),
+    );
+    expect(await service.summary()).toEqual({
+      todayConfirmed: 2,
+      next7DaysConfirmed: 2,
+      completedLast30Days: 1,
+      noShowLast30Days: 1,
+      cancelledLast30Days: 1,
+    });
   });
 });

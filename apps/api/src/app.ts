@@ -10,11 +10,17 @@ import { echoRequestId, generateRequestId } from './http/request-id';
 import { registerSecurityPlugins } from './http/security-plugins';
 import type { DatabaseClient } from './infra/db/prisma-client';
 import type { AdminAppointmentRepository } from './modules/admin-appointments/admin-appointments.ports';
-import { adminAppointmentsRoutes } from './modules/admin-appointments/admin-appointments.routes';
+import {
+  adminAppointmentsRoutes,
+  adminClientsRoutes,
+} from './modules/admin-appointments/admin-appointments.routes';
 import { createAdminAppointmentsService } from './modules/admin-appointments/admin-appointments.service';
 import type { AppointmentRepository } from './modules/appointments/appointments.ports';
 import { appointmentsRoutes } from './modules/appointments/appointments.routes';
-import { createAppointmentsService } from './modules/appointments/appointments.service';
+import {
+  createAppointmentsService,
+  createBooking,
+} from './modules/appointments/appointments.service';
 import { createAccessTokens } from './modules/auth/access-token';
 import { readAccessTokenCookie } from './modules/auth/auth-cookies';
 import type {
@@ -115,14 +121,25 @@ export async function buildApp({
     service: createAvailabilityService({ availability, ...businessRules }),
     guards,
   });
+  const booking = { appointments, schedule: availability, ...businessRules };
   await app.register(appointmentsRoutes, {
     prefix: '/api/appointments',
-    service: createAppointmentsService({ appointments, schedule: availability, ...businessRules }),
+    service: createAppointmentsService(booking),
     guards,
+  });
+  const adminService = createAdminAppointmentsService({
+    appointments: adminAppointments,
+    book: createBooking(booking),
+    ...businessRules,
   });
   await app.register(adminAppointmentsRoutes, {
     prefix: '/api/admin/appointments',
-    service: createAdminAppointmentsService({ appointments: adminAppointments, ...businessRules }),
+    service: adminService,
+    guards,
+  });
+  await app.register(adminClientsRoutes, {
+    prefix: '/api/admin/clients',
+    service: adminService,
     guards,
   });
   await app.register(scheduleBlocksRoutes, {

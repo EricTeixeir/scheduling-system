@@ -13,13 +13,16 @@ export interface AdminAppointmentRecord extends AppointmentRecord {
   readonly client: ClientSummary;
 }
 
-export interface AdminAppointmentsFilter {
+export interface AppointmentCriteria {
   readonly status?: AppointmentStatus;
   // Half-open: startsAt >= startsFrom and startsAt < startsBefore.
   readonly startsFrom?: Date;
   readonly startsBefore?: Date;
   // Case-insensitive substring of the client's name or e-mail, matched literally.
   readonly search?: string;
+}
+
+export interface AdminAppointmentsFilter extends AppointmentCriteria {
   readonly page: number;
   readonly pageSize: number;
 }
@@ -49,7 +52,12 @@ export interface AdminAppointmentsTransaction {
 export interface AdminAppointmentRepository {
   // Ordered by startsAt ascending, id as the tiebreak.
   list(filter: AdminAppointmentsFilter): Promise<AdminAppointmentPage>;
+  count(criteria: AppointmentCriteria): Promise<number>;
   findById(id: string): Promise<AdminAppointmentRecord | undefined>;
   listHistory(appointmentId: string): Promise<HistoryEventRecord[]>;
+  // Users with the CLIENT role only: an admin id is as unknown as a missing one.
+  findClient(id: string): Promise<ClientSummary | undefined>;
+  // Same matching as AppointmentCriteria.search, ordered by name.
+  searchClients(search: string, limit: number): Promise<ClientSummary[]>;
   transaction<T>(work: (tx: AdminAppointmentsTransaction) => Promise<T>): Promise<T>;
 }

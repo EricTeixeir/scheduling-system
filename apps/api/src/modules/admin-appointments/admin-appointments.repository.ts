@@ -3,9 +3,11 @@ import { mapPrismaError } from '../../infra/db/prisma-errors';
 import { createPrismaAuditLog } from '../audit/audit.repository';
 import type {
   AdminAppointmentRepository,
-  AdminAppointmentsFilter,
   AdminAppointmentsTransaction,
+  AppointmentCriteria,
 } from './admin-appointments.ports';
+
+const CLIENT = { id: true, name: true, email: true } as const;
 
 const RECORD = {
   id: true,
@@ -15,7 +17,7 @@ const RECORD = {
   status: true,
   notes: true,
   createdAt: true,
-  user: { select: { id: true, name: true, email: true } },
+  user: { select: CLIENT },
 } as const;
 
 type Row = Prisma.AppointmentGetPayload<{ select: typeof RECORD }>;
@@ -29,9 +31,18 @@ function escapeLikePattern(text: string): string {
   return text.replace(/[\\%_]/g, (character) => `\\${character}`);
 }
 
-function whereOf(filter: AdminAppointmentsFilter): Prisma.AppointmentWhereInput {
-  const { status, startsFrom, startsBefore, search } = filter;
-  const pattern = search === undefined ? undefined : escapeLikePattern(search);
+function nameOrEmailContains(search: string): Prisma.UserWhereInput {
+  const pattern = escapeLikePattern(search);
+  return {
+    OR: [
+      { name: { contains: pattern, mode: 'insensitive' } },
+      { email: { contains: pattern, mode: 'insensitive' } },
+    ],
+  };
+}
+
+function whereOf(criteria: AppointmentCriteria): Prisma.AppointmentWhereInput {
+  const { status, startsFrom, startsBefore, search } = criteria;
   return {
     ...(status === undefined ? {} : { status }),
     ...(startsFrom === undefined && startsBefore === undefined
@@ -42,16 +53,7 @@ function whereOf(filter: AdminAppointmentsFilter): Prisma.AppointmentWhereInput 
             ...(startsBefore === undefined ? {} : { lt: startsBefore }),
           },
         }),
-    ...(pattern === undefined
-      ? {}
-      : {
-          user: {
-            OR: [
-              { name: { contains: pattern, mode: 'insensitive' } },
-              { email: { contains: pattern, mode: 'insensitive' } },
-            ],
-          },
-        }),
+    ...(search === undefined ? {} : { user: nameOrEmailContains(search) }),
   };
 }
 
@@ -89,6 +91,10 @@ export function createPrismaAdminAppointmentRepository(
       return { items: rows.map(toRecord), total };
     },
 
+    count(criteria) {
+      return prisma.appointment.count({ where: whereOf(criteria) });
+    },
+
     async findById(id) {
       const found = await prisma.appointment.findUnique({ where: { id }, select: RECORD });
       return found === null ? undefined : toRecord(found);
@@ -115,6 +121,20 @@ export function createPrismaAdminAppointmentRepository(
             actor: { ...actor, role: actorRole },
           })),
         );
+    },
+
+    async findClient(id) {
+      const found = await prisma.user.findFirst({ where: { id, role: 'CLIENT' }, select: CLIENT });
+      return found ?? undefined;
+    },
+
+    searchClients(search, limit) {
+      return prisma.user.findMany({
+        where: { role: 'CLIENT', ...nameOrEmailContains(search) },
+        select: CLIENT,
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        take: limit,
+      });
     },
 
     async transaction(work) {
