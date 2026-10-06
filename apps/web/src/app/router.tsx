@@ -2,8 +2,8 @@ import { createBrowserRouter, type RouteObject } from 'react-router';
 
 import { RouterErrorFallback } from '@/components/error-boundary/router-error-fallback';
 import { AdminPage } from '@/features/admin/admin-page';
-import { BookPage } from '@/features/appointments/book-page';
-import { MyAppointmentsPage } from '@/features/appointments/my-appointments-page';
+import { BookPage } from '@/features/appointments/booking/book-page';
+import { MyAppointmentsPage } from '@/features/appointments/my-appointments/my-appointments-page';
 import { AuthLayout } from '@/features/auth/auth-layout';
 import { LoginPage } from '@/features/auth/login-page';
 import { RegisterPage } from '@/features/auth/register-page';

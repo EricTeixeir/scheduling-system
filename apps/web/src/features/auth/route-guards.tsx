@@ -12,17 +12,7 @@ import { messageFor } from '@/lib/errors/messages';
 import { AuthenticatedUserContext, useAuthenticatedUser } from './authenticated-user';
 import { useCurrentUser } from './use-current-user';
 import { ForbiddenPage } from './forbidden-page';
-
-interface RedirectState {
-  readonly from?: unknown;
-}
-
-// Only same-app absolute paths: "//evil.example" would be read as a protocol-relative URL.
-function safeReturnPath(state: unknown): string | undefined {
-  const from = (state as RedirectState | null)?.from;
-  if (typeof from !== 'string' || !from.startsWith('/') || from.startsWith('//')) return undefined;
-  return from;
-}
+import { pathAfterSignIn } from './return-path';
 
 function SessionCheckFailed({ error, onRetry }: { error: unknown; onRetry: () => void }) {
   return (
@@ -86,7 +76,7 @@ export function GuestOnly() {
         user === null ? (
           <Outlet />
         ) : (
-          <Navigate to={safeReturnPath(location.state) ?? homePathFor(user.role)} replace />
+          <Navigate to={pathAfterSignIn(location.state, user.role)} replace />
         )
       }
     </WhenSessionKnown>

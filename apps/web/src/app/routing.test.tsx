@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
+import { pathAfterSignIn } from '@/features/auth/return-path';
 import { RequireAuth } from '@/features/auth/route-guards';
 import { useApiClient } from '@/lib/api/api-client-context';
 import {
@@ -25,6 +26,24 @@ function signedOut() {
 function signedInAs(user: typeof CLIENT_USER) {
   return { 'GET /auth/me': () => jsonResponse(user) };
 }
+
+describe('pathAfterSignIn', () => {
+  it('returns to the page that asked for the sign in when the role can open it', () => {
+    expect(pathAfterSignIn({ from: '/meus-agendamentos?aba=anteriores' }, 'CLIENT')).toBe(
+      '/meus-agendamentos?aba=anteriores',
+    );
+  });
+
+  it("goes home instead of to another role's page", () => {
+    expect(pathAfterSignIn({ from: '/agendar' }, 'ADMIN')).toBe('/admin');
+    expect(pathAfterSignIn({ from: '/admin' }, 'CLIENT')).toBe('/agendar');
+  });
+
+  it('ignores missing and external return paths', () => {
+    expect(pathAfterSignIn(null, 'CLIENT')).toBe('/agendar');
+    expect(pathAfterSignIn({ from: '//evil.example' }, 'CLIENT')).toBe('/agendar');
+  });
+});
 
 describe('route guards', () => {
   it('sends an unauthenticated visitor to /login', async () => {

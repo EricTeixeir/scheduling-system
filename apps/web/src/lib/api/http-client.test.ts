@@ -72,6 +72,18 @@ describe('createApiClient', () => {
       expect(calls[0]?.headers.has('Content-Type')).toBe(false);
     });
 
+    it('sends extra headers without letting them replace the CSRF header', async () => {
+      const { api, calls } = setup({ 'POST /appointments': () => noContent() });
+
+      await api.request('/appointments', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': 'key-1', 'X-Requested-With': 'forged' },
+      });
+
+      expect(calls[0]?.headers.get('Idempotency-Key')).toBe('key-1');
+      expect(calls[0]?.headers.get('X-Requested-With')).toBe('fetch');
+    });
+
     it('rejects paths that do not start with a slash', async () => {
       const { api } = setup({});
 

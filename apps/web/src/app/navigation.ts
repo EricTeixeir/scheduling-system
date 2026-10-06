@@ -39,6 +39,11 @@ export function navItemsFor(role: Role): readonly NavItem[] {
   return NAV_ITEMS_BY_ROLE[role];
 }
 
+export function isAreaOf(role: Role, path: string): boolean {
+  const { pathname } = new URL(path, 'http://app.local');
+  return navItemsFor(role).some(({ to }) => pathname === to || pathname.startsWith(`${to}/`));
+}
+
 export function homePathFor(role: Role): string {
   // eslint-disable-next-line security/detect-object-injection -- role is a typed Role, never free-form input.
   return HOME_BY_ROLE[role];
