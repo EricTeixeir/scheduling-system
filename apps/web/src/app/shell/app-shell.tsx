@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation } from 'react-router';
 
 import { Brand } from '@/components/brand';
 import { AppErrorBoundary } from '@/components/error-boundary/app-error-boundary';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { useLogout } from '@/features/auth/use-auth-mutations';
 import { useAuthenticatedUser } from '@/features/auth/authenticated-user';
 
@@ -41,8 +42,11 @@ export function AppShell() {
           <nav aria-label="Principal" className="ml-6 hidden md:block">
             <NavLinks role={user.role} orientation="horizontal" />
           </nav>
-          <div className="ml-auto hidden md:block">
-            <UserMenu user={user} onLogout={logout} loggingOut={logoutMutation.isPending} />
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
+            <div className="hidden md:block">
+              <UserMenu user={user} onLogout={logout} loggingOut={logoutMutation.isPending} />
+            </div>
           </div>
         </div>
       </header>

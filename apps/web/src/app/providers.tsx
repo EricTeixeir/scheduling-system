@@ -10,6 +10,7 @@ import { ApiClientContext } from '@/lib/api/api-client-context';
 import { createApiClient, type ApiClient } from '@/lib/api/http-client';
 import { SESSION_EXPIRED_MESSAGE } from '@/lib/errors/messages';
 import { createQueryClient } from '@/lib/query/query-client';
+import { ThemeProvider } from '@/lib/theme/theme-provider';
 
 export type AppRouter = ReturnType<typeof createBrowserRouter>;
 
@@ -42,11 +43,13 @@ export function AppProviders({ router, fetch: fetchImpl }: AppProvidersProps) {
   const [{ queryClient, apiClient }] = useState(() => createClients(fetchImpl));
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ApiClientContext value={apiClient}>
-        <RouterProvider router={router} />
-        <Toaster />
-      </ApiClientContext>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <ApiClientContext value={apiClient}>
+          <RouterProvider router={router} />
+          <Toaster />
+        </ApiClientContext>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

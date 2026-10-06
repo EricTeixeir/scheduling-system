@@ -25,6 +25,30 @@
   --border: oklch(0.91 0.01 264);
   --input: oklch(0.88 0.012 264);
   --ring: oklch(0.6 0.17 268);
+  color-scheme: light;
+}
+
+.dark {
+  --background: oklch(0.17 0.02 268);
+  --foreground: oklch(0.96 0.005 264);
+  --card: oklch(0.21 0.022 268);
+  --card-foreground: oklch(0.96 0.005 264);
+  --popover: oklch(0.21 0.022 268);
+  --popover-foreground: oklch(0.96 0.005 264);
+  --primary: oklch(0.68 0.16 268);
+  --primary-foreground: oklch(0.17 0.03 268);
+  --secondary: oklch(0.26 0.02 268);
+  --secondary-foreground: oklch(0.94 0.01 264);
+  --muted: oklch(0.25 0.02 268);
+  --muted-foreground: oklch(0.71 0.02 264);
+  --accent: oklch(0.28 0.05 268);
+  --accent-foreground: oklch(0.92 0.04 268);
+  --destructive: oklch(0.65 0.2 25);
+  --success: oklch(0.72 0.14 155);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.62 0.15 268);
+  color-scheme: dark;
 }
 
 @theme inline {
