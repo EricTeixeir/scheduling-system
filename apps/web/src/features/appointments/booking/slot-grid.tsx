@@ -13,7 +13,7 @@ interface SlotGridProps {
   readonly timeZone: string;
   readonly selectedStartsAt: string | null;
   readonly onSelect: (slot: Slot) => void;
-  readonly onOpenMine: (appointmentId: string) => void;
+  readonly onOpenMine?: ((appointmentId: string) => void) | undefined;
 }
 
 type SlotCellProps = Omit<SlotGridProps, 'groups'>;
@@ -66,7 +66,7 @@ function MySlotButton({
       title="Seu agendamento"
       className="h-11 w-full gap-1.5 border-primary bg-primary/10 font-semibold text-primary tabular-nums hover:bg-primary/15 hover:text-primary"
       onClick={() => {
-        onOpenMine(slot.appointmentId);
+        onOpenMine?.(slot.appointmentId);
       }}
     >
       <CalendarCheck className="size-4" aria-hidden="true" />
