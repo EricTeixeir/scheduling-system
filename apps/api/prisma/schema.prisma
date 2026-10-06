@@ -43,6 +43,8 @@ model User {
   updatedAt            DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
   appointments         Appointment[]
   refreshTokenFamilies RefreshTokenFamily[]
+  idempotencyKeys      IdempotencyKey[]
+  auditEvents          AuditEvent[]
 
   @@map("users")
 }
@@ -116,4 +118,42 @@ model ClosedDate {
   reason String   @db.VarChar(200)
 
   @@map("closed_dates")
+}
+
+// A replayable POST: the stored response is returned again for the same user, key and body.
+// Only successful responses are stored. Rows older than 24 h are ignored and may be deleted.
+model IdempotencyKey {
+  userId         String   @map("user_id") @db.Uuid
+  key            String   @db.Uuid
+  // SHA-256 (lowercase hex) of the canonical parsed request body.
+  requestHash    String   @map("request_hash") @db.Char(64)
+  responseStatus Int      @map("response_status") @db.SmallInt
+  responseBody   Json     @map("response_body")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, key])
+  @@index([createdAt])
+  @@map("idempotency_keys")
+}
+
+// Append-only trail of state changes, written in the same transaction as the change.
+// A trigger rejects UPDATE, DELETE and TRUNCATE. metadata never holds personal data or secrets.
+model AuditEvent {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  actorId    String   @map("actor_id") @db.Uuid
+  actorRole  Role     @map("actor_role")
+  action     String   @db.VarChar(64)
+  entityType String   @map("entity_type") @db.VarChar(64)
+  entityId   String   @map("entity_id") @db.Uuid
+  fromStatus String?  @map("from_status") @db.VarChar(32)
+  toStatus   String?  @map("to_status") @db.VarChar(32)
+  requestId  String   @map("request_id") @db.VarChar(64)
+  metadata   Json?
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([entityType, entityId, occurredAt])
+  @@index([actorId])
+  @@map("audit_events")
 }

@@ -2,6 +2,7 @@ import { TZDate } from '@date-fns/tz';
 import { format } from 'date-fns';
 
 import { assertValidInstant } from './instant';
+import type { TimeRange } from './time-range';
 
 // 'YYYY-MM-DD' in the business time zone.
 export type LocalDate = string;
@@ -57,4 +58,13 @@ export function zonedInstant(date: LocalDate, minuteOfDay: number, timeZone: str
   const hours = Math.floor(minuteOfDay / 60);
   const minutes = minuteOfDay % 60;
   return new Date(new TZDate(year, month - 1, day, hours, minutes, 0, 0, timeZone).getTime());
+}
+
+// The whole local calendar day as instants: [00:00 of date, 00:00 of the next day).
+// Not always 24 h long: a DST change makes the day shorter or longer.
+export function localDayRange(date: LocalDate, timeZone: string): TimeRange {
+  const { year, month, day } = parseLocalDate(date);
+  const next = new Date(Date.UTC(year, month - 1, day + 1));
+  const nextDate = next.toISOString().slice(0, 10);
+  return { startsAt: zonedInstant(date, 0, timeZone), endsAt: zonedInstant(nextDate, 0, timeZone) };
 }
