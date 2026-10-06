@@ -13,6 +13,7 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 export interface RequestOptions {
   readonly method?: HttpMethod;
   readonly body?: unknown;
+  readonly headers?: Readonly<Record<string, string>>;
   readonly signal?: AbortSignal | undefined;
 }
 
@@ -59,9 +60,10 @@ export function createApiClient({
 
   async function sendOnce(
     path: string,
-    { method = 'GET', body, signal }: RequestOptions,
+    { method = 'GET', body, headers: extraHeaders = {}, signal }: RequestOptions,
   ): Promise<Response> {
-    const headers = new Headers({ Accept: 'application/json, application/problem+json' });
+    const headers = new Headers(extraHeaders);
+    headers.set('Accept', 'application/json, application/problem+json');
     if (method !== 'GET') headers.set(CSRF_HEADER, CSRF_HEADER_VALUE);
     if (body !== undefined) headers.set('Content-Type', 'application/json');
 
