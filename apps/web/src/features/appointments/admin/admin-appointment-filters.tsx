@@ -9,7 +9,7 @@ import { statusPresentationOf } from '../shared/status-presentation';
 import { PERIODS, type Period, type StatusFilter } from './admin-appointment-period';
 
 const SELECT_CLASSES =
-  'h-11 w-full rounded-md border border-input bg-background px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:h-10 md:text-sm dark:bg-input/30';
+  'h-11 w-full rounded-md border border-input bg-background px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 md:h-10 md:text-sm dark:bg-input/30 [&_option]:bg-popover [&_option]:text-popover-foreground';
 
 interface AdminAppointmentFiltersProps {
   readonly search: string;
