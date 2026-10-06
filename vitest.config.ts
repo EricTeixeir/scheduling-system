@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config';
 
-// Runs every workspace project from the root (used by `npm run test:coverage`, which skips `rules`).
+// Runs every workspace project from the root (used by `npm run test:coverage`).
 // Each workspace can also run on its own with `npm run test:unit`.
 export default defineConfig({
   test: {
@@ -8,19 +8,7 @@ export default defineConfig({
       'packages/shared',
       'apps/api',
       'apps/web',
-      // Business-rule tests over HTTP against the running stack (`npm run test:rules`).
-      {
-        test: {
-          name: 'rules',
-          environment: 'node',
-          include: ['tests/rules/**/*.test.ts'],
-          // They share one stack and restart its containers: never in parallel.
-          fileParallelism: false,
-          sequence: { concurrent: false },
-          testTimeout: 180_000,
-          hookTimeout: 180_000,
-        },
-      },
+      // Business-rule tests over HTTP live in vitest.rules.config.ts.
     ],
     coverage: {
       provider: 'v8',
