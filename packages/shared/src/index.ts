@@ -13,6 +13,7 @@ export {
   type PaginationQueryInput,
   type PaginationQueryOutput,
 } from './common/pagination';
+export { timeOfDaySchema } from './common/time-of-day';
 export { uuidSchema } from './common/uuid';
 
 export {
@@ -50,12 +51,21 @@ export {
   adminAppointmentsQuerySchema,
   APPOINTMENT_SCOPES,
   clientAppointmentsQuerySchema,
+  SEARCH_MAX_LENGTH,
   type AdminAppointmentsQueryInput,
   type AdminAppointmentsQueryOutput,
   type AppointmentScope,
   type ClientAppointmentsQueryInput,
   type ClientAppointmentsQueryOutput,
 } from './appointments/appointments-query';
+export {
+  APPOINTMENT_HISTORY_ACTIONS,
+  appointmentHistoryEntrySchema,
+  appointmentHistorySchema,
+  type AppointmentHistory,
+  type AppointmentHistoryAction,
+  type AppointmentHistoryEntry,
+} from './appointments/appointment-history';
 export {
   createAppointmentSchema,
   NOTES_MAX_LENGTH,
@@ -70,9 +80,25 @@ export {
   type UpdateAppointmentStatusOutput,
 } from './appointments/update-appointment-status';
 
+export {
+  BLOCK_REASON_MAX_LENGTH,
+  createScheduleBlockSchema,
+  type CreateScheduleBlockInput,
+  type CreateScheduleBlockOutput,
+} from './blocks/create-schedule-block';
+export {
+  scheduleBlockListSchema,
+  scheduleBlockSchema,
+  type ScheduleBlock,
+  type ScheduleBlockList,
+} from './blocks/schedule-block';
+
 export { ERROR_CODES, type ErrorCode } from './errors/error-codes';
 export {
+  MAX_LISTED_CONFLICTS,
   problemDetailsSchema,
+  scheduleConflictSchema,
   type FieldError,
   type ProblemDetails,
+  type ScheduleConflict,
 } from './errors/problem-details';

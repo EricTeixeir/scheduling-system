@@ -4,16 +4,32 @@ import { APPOINTMENT_STATUSES } from '../appointment-status';
 import { localDateSchema } from '../common/local-date';
 import { paginationQuerySchema } from '../common/pagination';
 
-export const adminAppointmentsQuerySchema = paginationQuerySchema
+export const SEARCH_MAX_LENGTH = 100;
+
+const adminFiltersSchema = paginationQuerySchema
   .extend({
     status: z.enum(APPOINTMENT_STATUSES, { error: 'Status inválido.' }).optional(),
     from: localDateSchema.optional(),
     to: localDateSchema.optional(),
+    q: z
+      .string({ error: 'A busca deve ser um texto.' })
+      .trim()
+      .max(SEARCH_MAX_LENGTH, {
+        error: `A busca deve ter no máximo ${String(SEARCH_MAX_LENGTH)} caracteres.`,
+      })
+      .optional(),
   })
   .refine(({ from, to }) => from === undefined || to === undefined || from <= to, {
     error: 'A data final deve ser igual ou posterior à data inicial.',
     path: ['to'],
   });
+
+type AdminFilters = Omit<z.output<typeof adminFiltersSchema>, 'q'> & { q?: string };
+
+// `q` matches the client's name or e-mail; a blank search means no search.
+export const adminAppointmentsQuerySchema = adminFiltersSchema.transform(
+  ({ q, ...rest }): AdminFilters => (q ? { ...rest, q } : rest),
+);
 
 export const APPOINTMENT_SCOPES = ['upcoming', 'past'] as const;
 
