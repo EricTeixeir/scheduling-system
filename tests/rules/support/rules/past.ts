@@ -60,14 +60,8 @@ function gridSlotContaining(instant: Date, timeZone: string): Date {
   return slot?.startsAt ?? floorToGrid(instant);
 }
 
-function nextGridSlotFrom(now: Date, timeZone: string): Date {
-  const date = localDateOf(now, timeZone);
-  const hours = hoursOn(date);
-  const slot =
-    hours === null
-      ? undefined
-      : slotsOf(businessDayOf(date, hours, timeZone)).find(({ startsAt }) => startsAt >= now);
-  return slot?.startsAt ?? addMinutes(floorToGrid(now), SEED_SLOT_MINUTES);
+function nextGridBoundaryAfter(now: Date): Date {
+  return addMinutes(floorToGrid(now), SEED_SLOT_MINUTES);
 }
 
 // The API checks the slot grid (open day, business hours) before the time window, so outside
@@ -95,7 +89,7 @@ export function pastCases(now: Date, timeZone: string): PastCase[] {
     },
     {
       label: 'horário que começa agora',
-      ...expectedRefusal(nextGridSlotFrom(now, timeZone), now, timeZone),
+      ...expectedRefusal(nextGridBoundaryAfter(now), now, timeZone),
     },
   ];
 }
