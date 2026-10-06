@@ -45,6 +45,7 @@ model User {
   refreshTokenFamilies RefreshTokenFamily[]
   idempotencyKeys      IdempotencyKey[]
   auditEvents          AuditEvent[]
+  scheduleBlocks       ScheduleBlock[]
 
   @@map("users")
 }
@@ -156,4 +157,24 @@ model AuditEvent {
   @@index([entityType, entityId, occurredAt])
   @@index([actorId])
   @@map("audit_events")
+}
+
+// A recurring period with no availability, e.g. every weekday 13:00-13:30. Blocks are applied
+// when slots are computed and when a booking is checked, not by a database constraint.
+// startTime/endTime are LOCAL wall-clock times in the business timezone; ends_on null = no end.
+model ScheduleBlock {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  // 0 = Sunday ... 6 = Saturday, like AvailabilityRule.weekday.
+  weekdays  Int[]     @db.SmallInt
+  startTime DateTime  @map("start_time") @db.Time(0)
+  endTime   DateTime  @map("end_time") @db.Time(0)
+  startsOn  DateTime  @map("starts_on") @db.Date
+  endsOn    DateTime? @map("ends_on") @db.Date
+  reason    String?   @db.VarChar(200)
+  createdBy String    @map("created_by") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  creator   User      @relation(fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([startsOn])
+  @@map("schedule_blocks")
 }
