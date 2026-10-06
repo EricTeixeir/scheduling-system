@@ -1,3 +1,17 @@
+# `docker compose up --build` runs the whole stack with no .env: http://localhost:8080.
+# The fallbacks below are DEVELOPMENT values. The API only accepts them while
+# NODE_ENV is not production; a real deployment must set NODE_ENV=production plus
+# real POSTGRES_PASSWORD and JWT_SECRET (in .env or the environment), or the API refuses to start.
+
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+  read_only: true
+  cap_drop:
+    - ALL
+
+x-database-url: &database-url postgresql://${POSTGRES_USER:-scheduling}:${POSTGRES_PASSWORD:-dev_only_change_me}@db:5432/${POSTGRES_DB:-scheduling}
+
 services:
   db:
     image: postgres:18.6-alpine3.24
@@ -19,20 +33,82 @@ services:
       start_period: 10s
     # Hardening: immutable root filesystem and only the capabilities the
     # entrypoint needs to fix data-dir ownership and drop to the postgres user.
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
+    <<: *hardening
     tmpfs:
       - /var/run/postgresql
       - /tmp
-    cap_drop:
-      - ALL
     cap_add:
       - CHOWN
       - DAC_OVERRIDE
       - FOWNER
       - SETGID
       - SETUID
+
+  # One-shot: applies pending migrations and the idempotent seed, then exits 0.
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: build
+    working_dir: /app/apps/api
+    command: ['sh', '-c', 'npx --no prisma migrate deploy && npx --no prisma db seed']
+    restart: 'no'
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: *database-url
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-euro@admin.com}
+      # `$$` is a literal `$`: the passwords are 1$3@Euro and Euro@3$1.
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-1$$3@Euro}
+      SEED_CLIENT_EMAIL: ${SEED_CLIENT_EMAIL:-euro@user.com}
+      SEED_CLIENT_PASSWORD: ${SEED_CLIENT_PASSWORD:-Euro@3$$1}
+      # npx and tsx write caches under the home and temp directories.
+      HOME: /tmp
+    <<: *hardening
+    tmpfs:
+      - /tmp
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: *database-url
+      JWT_SECRET: ${JWT_SECRET:-dev_only_change_me_jwt_secret_0123456789}
+      BUSINESS_TIMEZONE: ${BUSINESS_TIMEZONE:-America/Sao_Paulo}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      # nginx reaches the API from a private compose-network address.
+      TRUST_PROXY: ${TRUST_PROXY:-uniquelocal}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    # Longer than the API's own 10 s graceful-shutdown timer.
+    stop_grace_period: 15s
+    <<: *hardening
+    tmpfs:
+      - /tmp
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - '8080:8080'
+    <<: *hardening
+    tmpfs:
+      - /tmp
 
 volumes:
   db-data:

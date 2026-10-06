@@ -6,6 +6,7 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "tsx watch --env-file-if-exists=../../.env src/server.ts",
+    "build": "tsx build.ts",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
     "db:generate": "prisma generate",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@types/pg": "8.23.1",
+    "esbuild": "0.28.2",
     "prisma": "7.10.0",
     "tsx": "4.23.15"
   }
