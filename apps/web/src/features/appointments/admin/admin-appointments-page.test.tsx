@@ -8,7 +8,7 @@ import { fixedClock, renderApp } from '@/test/render-app';
 
 const NOW = fixedClock('2026-10-07T15:00:00.000Z');
 const ID = '5b1e6a4c-2d3f-4a5b-8c6d-7e8f9a0b1c2d';
-const THIS_WEEK = 'GET /admin/appointments?page=1&pageSize=20&from=2026-10-07&to=2026-10-13';
+const FROM_TODAY = 'GET /admin/appointments?page=1&pageSize=20&from=2026-10-07';
 const STATUS = `POST /admin/appointments/${ID}/status`;
 
 type Handler = () => Response | Promise<Response>;
@@ -58,8 +58,8 @@ async function chooseAction(card: HTMLElement, label: string) {
 }
 
 describe('AdminAppointmentsPage', () => {
-  it('lists the week with date, time, client, status and a pager', async () => {
-    setup({ [THIS_WEEK]: page([started], 45) });
+  it('lists from today on by default, with date, time, client, status and a pager', async () => {
+    setup({ [FROM_TODAY]: page([started], 45) });
 
     const card = await cardOf('Maria Silva');
     expect(within(card).getByText('Quarta, 7 de outubro')).toBeVisible();
@@ -72,7 +72,7 @@ describe('AdminAppointmentsPage', () => {
 
   it('completes an appointment and refreshes the list', async () => {
     const { callsTo } = setup({
-      [THIS_WEEK]: [page([started]), page([{ ...started, status: 'COMPLETED' }])],
+      [FROM_TODAY]: [page([started]), page([{ ...started, status: 'COMPLETED' }])],
       [STATUS]: () => jsonResponse({ ...started, status: 'COMPLETED' }),
     });
 
@@ -90,7 +90,7 @@ describe('AdminAppointmentsPage', () => {
 
   it('cancels only after confirmation', async () => {
     const { user, callsTo } = setup({
-      [THIS_WEEK]: page([upcoming]),
+      [FROM_TODAY]: page([upcoming]),
       [STATUS]: () => jsonResponse({ ...upcoming, status: 'CANCELLED' }),
     });
 
@@ -109,7 +109,7 @@ describe('AdminAppointmentsPage', () => {
 
   it('explains a refused change (422 NOT_STARTED_YET)', async () => {
     setup({
-      [THIS_WEEK]: page([started]),
+      [FROM_TODAY]: page([started]),
       [STATUS]: () => problemResponse(422, { code: 'NOT_STARTED_YET' }),
     });
 
@@ -133,7 +133,7 @@ describe('AdminAppointmentsPage', () => {
       ...overrides,
     });
     setup({
-      [THIS_WEEK]: page([started]),
+      [FROM_TODAY]: page([started]),
       [`GET /admin/appointments/${ID}/history`]: () =>
         jsonResponse({
           items: [
@@ -162,7 +162,7 @@ describe('AdminAppointmentsPage', () => {
 
   it('shows an error with a retry when the list cannot be loaded', async () => {
     const { user } = setup({
-      [THIS_WEEK]: [() => problemResponse(403, { code: 'FORBIDDEN' }), page([started])],
+      [FROM_TODAY]: [() => problemResponse(403, { code: 'FORBIDDEN' }), page([started])],
     });
 
     expect(await screen.findByText('Não foi possível carregar os agendamentos')).toBeVisible();

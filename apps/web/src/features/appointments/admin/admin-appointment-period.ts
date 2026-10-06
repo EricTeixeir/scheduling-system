@@ -3,6 +3,7 @@ import type { AppointmentStatus } from '@scheduling/shared';
 import { addDays, type LocalDate } from '@/lib/time/local-date';
 
 export const PERIODS = [
+  { value: 'from-today', label: 'Hoje em diante' },
   { value: 'today', label: 'Hoje' },
   { value: 'week', label: 'Próximos 7 dias' },
   { value: 'all', label: 'Todos' },
@@ -19,6 +20,8 @@ export interface PeriodRange {
 
 export function periodRange(period: Period, today: LocalDate): PeriodRange {
   switch (period) {
+    case 'from-today':
+      return { from: today };
     case 'today':
       return { from: today, to: today };
     case 'week':

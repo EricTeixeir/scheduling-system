@@ -26,7 +26,7 @@ export function AdminAppointmentsPage() {
   const clock = useClock();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<StatusFilter>('ALL');
-  const [period, setPeriod] = useState<Period>('week');
+  const [period, setPeriod] = useState<Period>('from-today');
   const [page, setPage] = useState(1);
   const [historyFor, setHistoryFor] = useState<AdminAppointment | null>(null);
   const actions = useAdminAppointmentActions(setHistoryFor);
@@ -88,8 +88,8 @@ export function AdminAppointmentsPage() {
         <div className="rounded-xl border border-dashed bg-card">
           <InlineState
             icon={CalendarSearch}
-            title="Nenhum agendamento encontrado"
-            description="Ajuste a busca, o status ou o período para ver outros agendamentos."
+            title="Nenhum agendamento por aqui"
+            description="Ajuste a busca, o status ou o período, ou marque um horário em Disponíveis."
           />
         </div>
       ) : (
