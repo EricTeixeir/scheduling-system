@@ -32,7 +32,8 @@ varying vec2 vUv;
 #define GLOW 0.3
 #define TWINKLE 0.3
 #define ROTATION_SPEED 0.08
-#define REPULSION 2.0
+#define DENSITY 2.0
+#define REPULSION 0.1
 
 float Hash21(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -96,7 +97,7 @@ void main() {
   vec3 col = vec3(0.0);
   for (float i = 0.0; i < 1.0; i += 1.0 / NUM_LAYER) {
     float depth = fract(i + uStarSpeed);
-    float scale = mix(20.0, 0.5, depth);
+    float scale = mix(20.0 * DENSITY, 0.5 * DENSITY, depth);
     float fade = depth * smoothstep(1.0, 0.9, depth);
     col += StarLayer(uv * scale + i * 453.32) * fade;
   }
