@@ -94,6 +94,7 @@ export type BusinessRuleCode = Extract<
   | 'CLOSED_DATE'
   | 'OUTSIDE_BUSINESS_HOURS'
   | 'MISALIGNED'
+  | 'INVALID_DURATION'
   | 'CANCEL_DEADLINE_PASSED'
   | 'NOT_STARTED_YET'
   | 'ALREADY_STARTED'

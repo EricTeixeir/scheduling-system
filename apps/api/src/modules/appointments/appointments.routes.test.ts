@@ -141,6 +141,30 @@ describe('POST /api/appointments', () => {
     expect(availabilityResponseSchema.parse(availability.json()).slots).toHaveLength(17);
   });
 
+  it('books several slots with durationMinutes (201) and they all leave the availability', async () => {
+    const { app: server } = await start();
+    const cookie = await sessionCookie(server, 'maria@example.com');
+    const response = await book(server, cookie, { startsAt: TUESDAY_10AM, durationMinutes: 90 });
+    expect(response.statusCode).toBe(201);
+    expect(appointmentSchema.parse(response.json()).endsAt).toBe('2026-10-06T14:30:00.000Z');
+
+    const availability = await send(server, 'GET', '/api/availability?date=2026-10-06', {
+      headers: { cookie },
+    });
+    expect(availabilityResponseSchema.parse(availability.json()).slots).toHaveLength(15);
+  });
+
+  it('refuses a duration off the slot grid with 422 INVALID_DURATION', async () => {
+    const { app: server, scheduling } = await start();
+    const cookie = await sessionCookie(server, 'maria@example.com');
+    const response = await book(server, cookie, { startsAt: TUESDAY_10AM, durationMinutes: 45 });
+    expect(expectProblem(response, 422)).toMatchObject({
+      code: 'INVALID_DURATION',
+      title: 'Duração inválida para este horário',
+    });
+    expect(scheduling.appointments.size).toBe(0);
+  });
+
   it('ignores a client-sent endsAt: the strict body refuses unknown fields', async () => {
     const { app: server } = await start();
     const cookie = await sessionCookie(server, 'maria@example.com');
