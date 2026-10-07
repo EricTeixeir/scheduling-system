@@ -13,25 +13,25 @@ import { MobileNav } from './mobile-nav';
 import { NavLinks } from './nav-links';
 import { UserMenu } from './user-menu';
 
-const AppDotGrid = lazy(() => import('@/components/backgrounds/app-dot-grid'));
-const DOT_GRID_MEDIA =
+const AppDotField = lazy(() => import('@/components/backgrounds/app-dot-field'));
+const DOT_FIELD_MEDIA =
   '(min-width: 1024px) and (pointer: fine) and (prefers-reduced-motion: no-preference)';
 
 export function AppShell() {
   const user = useAuthenticatedUser();
   const { pathname } = useLocation();
   const logoutMutation = useLogout();
-  const showDotGrid = useMediaQuery(DOT_GRID_MEDIA);
+  const showDotField = useMediaQuery(DOT_FIELD_MEDIA);
   const logout = () => {
     logoutMutation.mutate();
   };
 
   return (
     <div className="flex min-h-dvh flex-col">
-      {showDotGrid ? (
+      {showDotField ? (
         <div className="pointer-events-none fixed inset-0" aria-hidden="true">
           <Suspense fallback={null}>
-            <AppDotGrid />
+            <AppDotField />
           </Suspense>
         </div>
       ) : null}
