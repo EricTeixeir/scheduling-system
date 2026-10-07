@@ -58,6 +58,7 @@ describe('admin appointment actions', () => {
 
 describe('periodRange', () => {
   it.each([
+    ['from-today', { from: '2026-10-07' }],
     ['today', { from: '2026-10-07', to: '2026-10-07' }],
     ['week', { from: '2026-10-07', to: '2026-10-13' }],
     ['all', {}],

@@ -5,9 +5,13 @@ import { useApiClient } from '@/lib/api/api-client-context';
 
 import { appointmentKeys } from '../shared/appointment-query-keys';
 import {
+  bookForClient,
   fetchAdminAppointments,
+  fetchAdminSummary,
   fetchAppointmentHistory,
+  searchClients,
   updateAppointmentStatus,
+  type BookForClientRequest,
 } from './admin-appointments-api';
 
 export function useAdminAppointments(query: AdminAppointmentsQueryInput) {
@@ -24,6 +28,34 @@ export function useAppointmentHistory(id: string) {
   return useQuery({
     queryKey: appointmentKeys.history(id),
     queryFn: ({ signal }) => fetchAppointmentHistory(api, id, signal),
+  });
+}
+
+export function useAdminSummary() {
+  const api = useApiClient();
+  return useQuery({
+    queryKey: appointmentKeys.summary(),
+    queryFn: ({ signal }) => fetchAdminSummary(api, signal),
+  });
+}
+
+export function useClientSearch(q: string) {
+  const api = useApiClient();
+  return useQuery({
+    queryKey: ['clients', 'search', q],
+    queryFn: ({ signal }) => searchClients(api, q, signal),
+    enabled: q !== '',
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useBookForClient() {
+  const api = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationKey: ['appointments', 'book-for-client'],
+    mutationFn: (request: BookForClientRequest) => bookForClient(api, request),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: appointmentKeys.all }),
   });
 }
 

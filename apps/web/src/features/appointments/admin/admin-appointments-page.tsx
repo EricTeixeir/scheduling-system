@@ -1,9 +1,11 @@
 import type { AdminAppointment, AdminAppointmentsQueryInput } from '@scheduling/shared';
 import { CalendarSearch, ChevronLeft, ChevronRight, CloudOff } from 'lucide-react';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 
 import { InlineState } from '@/components/states/inline-state';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { messageFor } from '@/lib/errors/messages';
 import { BUSINESS_TIME_ZONE } from '@/lib/time/business-time-zone';
@@ -17,16 +19,68 @@ import { AdminAppointmentFilters } from './admin-appointment-filters';
 import { AdminAppointmentList } from './admin-appointment-list';
 import { periodRange, type Period, type StatusFilter } from './admin-appointment-period';
 import { pageCountOf } from './admin-appointments-api';
+import { AdminAvailableSlots } from './admin-available-slots';
+import { AdminSummaryCards } from './admin-summary-cards';
 import { AppointmentHistorySheet } from './appointment-history-sheet';
 import { useAdminAppointments } from './use-admin-appointments';
 
 const SEARCH_DEBOUNCE_MS = 300;
+const VIEW_PARAM = 'visao';
+
+const VIEWS = [
+  { value: 'agendados', label: 'Agendados' },
+  { value: 'disponiveis', label: 'Disponíveis' },
+] as const;
+
+type View = (typeof VIEWS)[number]['value'];
+
+function viewOf(param: string | null): View {
+  return VIEWS.find((view) => view.value === param)?.value ?? 'agendados';
+}
 
 export function AdminAppointmentsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const showView = (view: string) => {
+    setSearchParams({ [VIEW_PARAM]: viewOf(view) }, { replace: true });
+  };
+
+  return (
+    <div className="space-y-6">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Agendamentos</h1>
+        <p className="text-sm text-muted-foreground sm:text-base">
+          Acompanhe a agenda, agende para clientes e registre o resultado dos atendimentos.
+        </p>
+      </header>
+      <AdminSummaryCards />
+      <Tabs value={viewOf(searchParams.get(VIEW_PARAM))} onValueChange={showView} className="gap-4">
+        <TabsList className="w-full sm:w-fit">
+          {VIEWS.map(({ value, label }) => (
+            <TabsTrigger key={value} value={value} className="sm:px-6">
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <TabsContent value="agendados">
+          <ScheduledAppointments />
+        </TabsContent>
+        <TabsContent value="disponiveis">
+          <AdminAvailableSlots
+            onShowScheduled={() => {
+              showView('agendados');
+            }}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function ScheduledAppointments() {
   const clock = useClock();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<StatusFilter>('ALL');
-  const [period, setPeriod] = useState<Period>('week');
+  const [period, setPeriod] = useState<Period>('from-today');
   const [page, setPage] = useState(1);
   const [historyFor, setHistoryFor] = useState<AdminAppointment | null>(null);
   const actions = useAdminAppointmentActions(setHistoryFor);
@@ -42,12 +96,6 @@ export function AdminAppointmentsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Agendamentos</h1>
-        <p className="text-sm text-muted-foreground sm:text-base">
-          Acompanhe a agenda, registre o resultado dos atendimentos e cancele quando precisar.
-        </p>
-      </header>
       <AdminAppointmentFilters
         search={search}
         status={status}
@@ -88,8 +136,8 @@ export function AdminAppointmentsPage() {
         <div className="rounded-xl border border-dashed bg-card">
           <InlineState
             icon={CalendarSearch}
-            title="Nenhum agendamento encontrado"
-            description="Ajuste a busca, o status ou o período para ver outros agendamentos."
+            title="Nenhum agendamento por aqui"
+            description="Ajuste a busca, o status ou o período, ou marque um horário em Disponíveis."
           />
         </div>
       ) : (
