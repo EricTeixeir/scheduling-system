@@ -1,4 +1,5 @@
 import {
+  MAX_PAGE_SIZE,
   adminAppointmentSchema,
   adminAppointmentsQuerySchema,
   adminCreateAppointmentSchema,
@@ -18,6 +19,7 @@ import {
 } from '@scheduling/shared';
 
 import type { ApiClient } from '@/lib/api/http-client';
+import type { LocalDate } from '@/lib/time/local-date';
 
 import { IDEMPOTENCY_KEY_HEADER } from '../booking/booking-api';
 
@@ -106,4 +108,25 @@ export function searchClients(
 
 export function pageCountOf({ pageSize, total }: AdminAppointmentPage): number {
   return Math.max(1, Math.ceil(total / pageSize));
+}
+
+export async function fetchConfirmedAppointmentsOn(
+  api: ApiClient,
+  date: LocalDate,
+  signal?: AbortSignal,
+): Promise<AdminAppointment[]> {
+  const appointments: AdminAppointment[] = [];
+  let page = 1;
+  let pageCount = 1;
+  while (page <= pageCount) {
+    const result = await fetchAdminAppointments(
+      api,
+      { page, pageSize: MAX_PAGE_SIZE, status: 'CONFIRMED', from: date, to: date },
+      signal,
+    );
+    appointments.push(...result.items);
+    pageCount = pageCountOf(result);
+    page += 1;
+  }
+  return appointments;
 }

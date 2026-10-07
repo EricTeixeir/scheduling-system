@@ -18,6 +18,7 @@ interface DaySlotsProps {
   readonly selectedStartsAt: string | null;
   readonly onSelectSlot: (slot: Slot) => void;
   readonly onOpenMine?: ((appointmentId: string) => void) | undefined;
+  readonly onOpenBooked?: ((appointmentId: string) => void) | undefined;
   readonly onRetry: () => void;
   readonly onNextDay: () => void;
 }
@@ -27,6 +28,7 @@ export function DaySlots({
   selectedStartsAt,
   onSelectSlot,
   onOpenMine,
+  onOpenBooked,
   onRetry,
   onNextDay,
 }: DaySlotsProps) {
@@ -63,6 +65,7 @@ export function DaySlots({
       selectedStartsAt={selectedStartsAt}
       onSelect={onSelectSlot}
       onOpenMine={onOpenMine}
+      onOpenBooked={onOpenBooked}
     />
   );
 }
