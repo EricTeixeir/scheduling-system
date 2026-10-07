@@ -12,7 +12,7 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      include: ['apps/*/src/**', 'packages/*/src/**'],
+      include: ['apps/*/src/**/*.{ts,tsx}', 'packages/*/src/**/*.ts'],
       // Test helpers and generated Prisma Client are not our production code. server.ts is the
       // process bootstrap (listen, signals, exit) and is exercised by running the API, not by tests.
       // *.repository.ts are thin Prisma queries whose behavior is the SQL itself; they are verified
