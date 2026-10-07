@@ -106,6 +106,7 @@ services:
         condition: service_healthy
     environment:
       WEB_PORT: ${WEB_PORT:-8080}
+      NGINX_ENTRYPOINT_QUIET_LOGS: 1
     ports:
       - '${WEB_PORT:-8080}:8080'
     <<: *hardening
