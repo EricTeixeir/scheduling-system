@@ -19,7 +19,7 @@ import {
 import type { OccupiedSlot } from '../booking/day-periods';
 import { SlotPicker, type OccupiedSlots } from '../booking/slot-picker';
 import { appointmentWhen } from '../shared/appointment-format';
-import { AppointmentHistorySheet } from './appointment-history-sheet';
+import { AppointmentHistoryDialog } from './appointment-history-dialog';
 import { BookForClientConfirmation } from './book-for-client-confirmation';
 import { useBookForClient, useConfirmedAppointmentsOn } from './use-admin-appointments';
 
@@ -124,7 +124,7 @@ export function AdminAvailableSlots({ onShowScheduled }: AdminAvailableSlotsProp
           setHistoryFor(booked.appointmentOf(appointmentId) ?? null);
         }}
       />
-      <AppointmentHistorySheet
+      <AppointmentHistoryDialog
         appointment={historyFor}
         onClose={() => {
           setHistoryFor(null);
