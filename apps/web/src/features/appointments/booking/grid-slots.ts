@@ -1,4 +1,4 @@
-import type { Appointment, Slot } from '@scheduling/shared';
+import { MAX_APPOINTMENT_MINUTES, type Appointment, type Slot } from '@scheduling/shared';
 
 import { localDateOf, type LocalDate } from '@/lib/time/local-date';
 
@@ -59,4 +59,26 @@ export function gridSlotsOf(
     if (localDateOf(slot.startsAt, timeZone) === date) byStart.set(slot.startsAt, slot);
   }
   return [...byStart.values()].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
+}
+
+export interface DurationLimits {
+  readonly slotMinutes: number;
+  readonly maxMinutes: number;
+}
+
+const MS_PER_MINUTE = 60_000;
+
+export function durationLimitsAt(slots: readonly GridSlot[], start: Slot): DurationLimits {
+  const slotMinutes = durationOf(start) / MS_PER_MINUTE;
+  const maxSlots = Math.max(1, Math.floor(MAX_APPOINTMENT_MINUTES / slotMinutes));
+  const freeByStart = new Map(
+    slots.filter((slot) => slot.kind === 'free').map((slot) => [Date.parse(slot.startsAt), slot]),
+  );
+  let count = 1;
+  let next = freeByStart.get(Date.parse(start.endsAt));
+  while (next !== undefined && count < maxSlots) {
+    count += 1;
+    next = freeByStart.get(Date.parse(next.endsAt));
+  }
+  return { slotMinutes, maxMinutes: count * slotMinutes };
 }

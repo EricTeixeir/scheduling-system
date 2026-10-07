@@ -15,7 +15,7 @@ export type DaySlotsState =
 
 interface DaySlotsProps {
   readonly state: DaySlotsState;
-  readonly selectedStartsAt: string | null;
+  readonly selected: Slot | null;
   readonly onSelectSlot: (slot: Slot) => void;
   readonly onOpenMine?: ((appointmentId: string) => void) | undefined;
   readonly onOpenBooked?: ((appointmentId: string) => void) | undefined;
@@ -25,7 +25,7 @@ interface DaySlotsProps {
 
 export function DaySlots({
   state,
-  selectedStartsAt,
+  selected,
   onSelectSlot,
   onOpenMine,
   onOpenBooked,
@@ -62,7 +62,7 @@ export function DaySlots({
     <SlotGrid
       groups={state.groups}
       timeZone={state.timeZone}
-      selectedStartsAt={selectedStartsAt}
+      selected={selected}
       onSelect={onSelectSlot}
       onOpenMine={onOpenMine}
       onOpenBooked={onOpenBooked}

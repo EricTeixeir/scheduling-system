@@ -11,13 +11,35 @@ import type { GridSlot, OccupiedSlot, SlotGroup } from './day-periods';
 interface SlotGridProps {
   readonly groups: readonly SlotGroup[];
   readonly timeZone: string;
-  readonly selectedStartsAt: string | null;
+  readonly selected: Slot | null;
   readonly onSelect: (slot: Slot) => void;
   readonly onOpenMine?: ((appointmentId: string) => void) | undefined;
   readonly onOpenBooked?: ((appointmentId: string) => void) | undefined;
 }
 
 type SlotCellProps = Omit<SlotGridProps, 'groups'>;
+
+type Coverage = 'start' | 'covered' | 'none';
+
+function coverageOf(slot: Slot, selected: Slot | null): Coverage {
+  if (selected === null) return 'none';
+  if (slot.startsAt === selected.startsAt) return 'start';
+  const start = Date.parse(slot.startsAt);
+  return start > Date.parse(selected.startsAt) && start < Date.parse(selected.endsAt)
+    ? 'covered'
+    : 'none';
+}
+
+function coverageStyle(coverage: Coverage): string {
+  switch (coverage) {
+    case 'start':
+      return 'ring-2 ring-primary/40 ring-offset-2 ring-offset-background';
+    case 'covered':
+      return 'bg-primary/75 hover:bg-primary/75';
+    case 'none':
+      return 'hover:border-primary hover:bg-accent hover:text-primary';
+  }
+}
 
 export function SlotButton({ slot, ...props }: SlotCellProps & { readonly slot: GridSlot }) {
   switch (slot.kind) {
@@ -33,21 +55,17 @@ export function SlotButton({ slot, ...props }: SlotCellProps & { readonly slot: 
 function FreeSlotButton({
   slot,
   timeZone,
-  selectedStartsAt,
+  selected,
   onSelect,
 }: SlotCellProps & { readonly slot: Slot }) {
-  const selected = slot.startsAt === selectedStartsAt;
+  const coverage = coverageOf(slot, selected);
   return (
     <Button
-      variant={selected ? 'default' : 'outline'}
-      aria-pressed={selected}
+      variant={coverage === 'none' ? 'outline' : 'default'}
+      aria-pressed={coverage === 'start'}
+      data-coverage={coverage}
       title={formatTimeRange(slot.startsAt, slot.endsAt, timeZone)}
-      className={cn(
-        'h-11 w-full font-semibold tabular-nums',
-        selected
-          ? 'ring-2 ring-primary/40 ring-offset-2 ring-offset-background'
-          : 'hover:border-primary hover:bg-accent hover:text-primary',
-      )}
+      className={cn('h-11 w-full font-semibold tabular-nums', coverageStyle(coverage))}
       onClick={() => {
         onSelect(slot);
       }}

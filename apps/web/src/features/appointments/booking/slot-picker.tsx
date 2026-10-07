@@ -6,7 +6,8 @@ import { BUSINESS_TIME_ZONE } from '@/lib/time/business-time-zone';
 import { formatDayTitle } from '@/lib/time/format';
 import { addDays, type LocalDate } from '@/lib/time/local-date';
 
-import { groupSlotsByPeriod, type OccupiedSlot } from './day-periods';
+import type { SlotChoice } from './chosen-slot';
+import { groupSlotsByPeriod, type GridSlot, type OccupiedSlot } from './day-periods';
 import {
   canGoToPreviousWeek,
   selectDay,
@@ -17,7 +18,7 @@ import {
 } from './day-selection';
 import { DaySlots, type DaySlotsState } from './day-slots';
 import { DayStrip } from './day-strip';
-import { gridSlotsOf } from './grid-slots';
+import { durationLimitsAt, gridSlotsOf } from './grid-slots';
 import { useAvailability, useAvailabilityOfDays } from './use-booking';
 
 export type OccupiedSlots =
@@ -27,10 +28,14 @@ export type OccupiedSlots =
 
 const NOTHING_OCCUPIED: OccupiedSlots = { status: 'ready', slots: [] };
 
-function useDaySlotsState(
-  date: LocalDate,
-  occupied: OccupiedSlots,
-): { readonly state: DaySlotsState; readonly timeZone: string; readonly retry: () => void } {
+interface DaySlotsView {
+  readonly state: DaySlotsState;
+  readonly slots: readonly GridSlot[];
+  readonly timeZone: string;
+  readonly retry: () => void;
+}
+
+function useDaySlotsState(date: LocalDate, occupied: OccupiedSlots): DaySlotsView {
   const availability = useAvailability(date);
   const timeZone = availability.data?.timeZone ?? BUSINESS_TIME_ZONE;
   const retry = () => {
@@ -38,24 +43,26 @@ function useDaySlotsState(
     if (occupied.status === 'error') occupied.retry();
   };
   if (availability.isError) {
-    return { state: { status: 'error', message: messageFor(availability.error) }, timeZone, retry };
+    const state = { status: 'error', message: messageFor(availability.error) } as const;
+    return { state, slots: [], timeZone, retry };
   }
   if (occupied.status === 'error') {
-    return { state: { status: 'error', message: messageFor(occupied.error) }, timeZone, retry };
+    const state = { status: 'error', message: messageFor(occupied.error) } as const;
+    return { state, slots: [], timeZone, retry };
   }
   if (availability.isPending || occupied.status === 'pending') {
-    return { state: { status: 'pending' }, timeZone, retry };
+    return { state: { status: 'pending' }, slots: [], timeZone, retry };
   }
   const slots = gridSlotsOf(availability.data.slots, occupied.slots, date, timeZone);
   const groups = groupSlotsByPeriod(slots, timeZone);
-  return { state: { status: 'ready', groups, timeZone }, timeZone, retry };
+  return { state: { status: 'ready', groups, timeZone }, slots, timeZone, retry };
 }
 
 interface SlotPickerProps {
   readonly today: LocalDate;
   readonly occupied?: OccupiedSlots;
-  readonly selectedStartsAt: string | null;
-  readonly onSelectSlot: (slot: Slot, timeZone: string) => void;
+  readonly selected: Slot | null;
+  readonly onSelectSlot: (choice: SlotChoice) => void;
   readonly onDayChange?: (date: LocalDate) => void;
   readonly onOpenMine?: (appointmentId: string) => void;
   readonly onOpenBooked?: (appointmentId: string) => void;
@@ -64,7 +71,7 @@ interface SlotPickerProps {
 export function SlotPicker({
   today,
   occupied = NOTHING_OCCUPIED,
-  selectedStartsAt,
+  selected,
   onSelectSlot,
   onDayChange,
   onOpenMine,
@@ -106,9 +113,13 @@ export function SlotPicker({
         </h2>
         <DaySlots
           state={selectedDay.state}
-          selectedStartsAt={selectedStartsAt}
+          selected={selected}
           onSelectSlot={(slot) => {
-            onSelectSlot(slot, selectedDay.timeZone);
+            onSelectSlot({
+              slot,
+              timeZone: selectedDay.timeZone,
+              limits: durationLimitsAt(selectedDay.slots, slot),
+            });
           }}
           onOpenMine={onOpenMine}
           onOpenBooked={onOpenBooked}

@@ -15,6 +15,7 @@ export const IDEMPOTENCY_KEY_HEADER = 'Idempotency-Key';
 export interface BookingRequest {
   readonly startsAt: string;
   readonly notes: string;
+  readonly durationMinutes?: number;
   readonly idempotencyKey: string;
 }
 

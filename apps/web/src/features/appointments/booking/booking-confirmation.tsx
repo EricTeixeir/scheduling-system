@@ -1,4 +1,4 @@
-import { NOTES_MAX_LENGTH, type Slot } from '@scheduling/shared';
+import { NOTES_MAX_LENGTH } from '@scheduling/shared';
 import { CalendarDays, Clock } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 
@@ -7,11 +7,13 @@ import { FormField } from '@/components/form/form-field';
 import { Textarea } from '@/components/ui/textarea';
 
 import { appointmentDayTitle, appointmentTimeRange } from '../shared/appointment-format';
+import { bookedRangeOf, type ChosenSlot } from './chosen-slot';
+import { DurationField } from './duration-field';
 
 interface BookingConfirmationProps {
-  readonly slot: Slot;
-  readonly timeZone: string;
+  readonly chosen: ChosenSlot;
   readonly pending: boolean;
+  readonly onMinutesChange: (minutes: number) => void;
   readonly onConfirm: (notes: string) => void;
   readonly onDismiss: () => void;
   readonly title?: string;
@@ -20,9 +22,9 @@ interface BookingConfirmationProps {
 }
 
 export function BookingConfirmation({
-  slot,
-  timeZone,
+  chosen,
   pending,
+  onMinutesChange,
   onConfirm,
   onDismiss,
   title = 'Confirmar agendamento',
@@ -30,6 +32,7 @@ export function BookingConfirmation({
   children,
 }: BookingConfirmationProps) {
   const [notes, setNotes] = useState('');
+  const range = bookedRangeOf(chosen);
 
   return (
     <ConfirmSurface
@@ -54,16 +57,19 @@ export function BookingConfirmation({
               <CalendarDays className="size-4 text-primary" aria-hidden="true" />
               <span className="sr-only">Dia</span>
             </dt>
-            <dd className="font-medium">{appointmentDayTitle(slot, timeZone)}</dd>
+            <dd className="font-medium">{appointmentDayTitle(range, chosen.timeZone)}</dd>
           </div>
           <div className="flex items-center gap-3">
             <dt>
               <Clock className="size-4 text-primary" aria-hidden="true" />
               <span className="sr-only">Horário</span>
             </dt>
-            <dd className="font-medium tabular-nums">{appointmentTimeRange(slot, timeZone)}</dd>
+            <dd className="font-medium tabular-nums">
+              {appointmentTimeRange(range, chosen.timeZone)}
+            </dd>
           </div>
         </dl>
+        <DurationField chosen={chosen} disabled={pending} onMinutesChange={onMinutesChange} />
         {children}
         <FormField
           label="Observações (opcional)"
