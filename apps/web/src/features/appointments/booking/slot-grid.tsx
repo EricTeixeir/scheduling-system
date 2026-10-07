@@ -94,16 +94,16 @@ function BookedSlotButton({
       variant="outline"
       aria-label={`${time}, agendado por ${slot.clientName}. Ver histórico`}
       title={`Agendado por ${slot.clientName}`}
-      className="h-11 w-full flex-col gap-0 border-dashed bg-muted px-2 text-muted-foreground hover:bg-muted/70 hover:text-foreground dark:bg-muted dark:hover:bg-muted/70"
+      className="h-11 w-full flex-col gap-0.5 border-dashed bg-muted px-2 py-0 text-muted-foreground hover:bg-muted/70 hover:text-foreground dark:bg-muted dark:hover:bg-muted/70"
       onClick={() => {
         onOpenBooked?.(slot.appointmentId);
       }}
     >
-      <span className="flex items-center gap-1 leading-tight font-semibold tabular-nums">
+      <span className="flex items-center gap-1 text-sm leading-4 font-semibold tabular-nums">
         <UserRound className="size-3.5" aria-hidden="true" />
         {time}
       </span>
-      <span className="max-w-full truncate text-xs leading-tight font-normal">
+      <span className="max-w-full truncate text-[11px] leading-3 font-normal">
         {firstNameOf(slot.clientName)}
       </span>
     </Button>
