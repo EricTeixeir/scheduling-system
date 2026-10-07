@@ -5,7 +5,8 @@ import type { Role } from '@scheduling/shared';
 import type {
   AdminAppointmentRecord,
   AdminAppointmentRepository,
-  AdminAppointmentsFilter,
+  AppointmentCriteria,
+  ClientSummary,
 } from '../modules/admin-appointments/admin-appointments.ports';
 import type { AppointmentRecord } from '../modules/appointments/appointments.ports';
 import type { AuditEvent } from '../modules/audit/audit.ports';
@@ -31,18 +32,24 @@ function byStartThenId(a: AppointmentRecord, b: AppointmentRecord): number {
   return a.startsAt.getTime() - b.startsAt.getTime() || a.id.localeCompare(b.id);
 }
 
-function matches(row: AdminAppointmentRecord, filter: AdminAppointmentsFilter): boolean {
-  const { status, startsFrom, startsBefore, search } = filter;
+function nameOrEmailContains({ name, email }: ClientSummary, search: string): boolean {
+  const needle = search.toLowerCase();
+  return name.toLowerCase().includes(needle) || email.toLowerCase().includes(needle);
+}
+
+function matches(row: AdminAppointmentRecord, criteria: AppointmentCriteria): boolean {
+  const { status, startsFrom, startsBefore, search } = criteria;
   const start = row.startsAt.getTime();
-  const needle = search?.toLowerCase();
   return (
     (status === undefined || row.status === status) &&
     (startsFrom === undefined || start >= startsFrom.getTime()) &&
     (startsBefore === undefined || start < startsBefore.getTime()) &&
-    (needle === undefined ||
-      row.client.name.toLowerCase().includes(needle) ||
-      row.client.email.toLowerCase().includes(needle))
+    (search === undefined || nameOrEmailContains(row.client, search))
   );
+}
+
+function summaryOf({ id, name, email }: DirectoryEntry): ClientSummary {
+  return { id, name, email };
 }
 
 export function createInMemoryAdminRepositories(
@@ -58,9 +65,10 @@ export function createInMemoryAdminRepositories(
   }
 
   function withClient(row: AppointmentRecord): AdminAppointmentRecord {
-    const { id, name, email } = person(row.userId);
-    return { ...row, client: { id, name, email } };
+    return { ...row, client: summaryOf(person(row.userId)) };
   }
+
+  const clients = () => [...directory.values()].filter((entry) => entry.role === 'CLIENT');
 
   function eventId(event: AuditEvent): string {
     let id = eventIds.get(event);
@@ -84,6 +92,11 @@ export function createInMemoryAdminRepositories(
       });
     },
 
+    count(criteria) {
+      const rows = [...store.appointments.values()].map(withClient);
+      return Promise.resolve(rows.filter((row) => matches(row, criteria)).length);
+    },
+
     findById(id) {
       const row = store.appointments.get(id);
       return Promise.resolve(row === undefined ? undefined : withClient(row));
@@ -102,6 +115,21 @@ export function createInMemoryAdminRepositories(
           toStatus: event.toStatus,
           actor: { id: event.actorId, name: person(event.actorId).name, role: event.actorRole },
         })),
+      );
+    },
+
+    findClient(id) {
+      const found = clients().find((entry) => entry.id === id);
+      return Promise.resolve(found === undefined ? undefined : summaryOf(found));
+    },
+
+    searchClients(search, limit) {
+      return Promise.resolve(
+        clients()
+          .filter((entry) => nameOrEmailContains(entry, search))
+          .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+          .slice(0, limit)
+          .map(summaryOf),
       );
     },
 

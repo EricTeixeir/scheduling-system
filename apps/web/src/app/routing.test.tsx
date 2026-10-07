@@ -67,7 +67,7 @@ describe('route guards', () => {
 
   it.each([
     [CLIENT_USER, '/agendar', 'Agendar horário'],
-    [ADMIN_USER, '/admin', 'Painel administrativo'],
+    [ADMIN_USER, '/admin', 'Agendamentos'],
   ])('lands $role on its home page', async (user, path, heading) => {
     const { fetch } = createFetchMock(signedInAs(user));
 

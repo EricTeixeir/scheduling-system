@@ -1,11 +1,16 @@
 import type { Appointment } from '@scheduling/shared';
-import { LoaderCircle } from 'lucide-react';
-import { useState } from 'react';
+import { EllipsisVertical, LoaderCircle } from 'lucide-react';
 
-import { ConfirmSurface } from '@/components/confirm-surface';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 import { availableActions, type AppointmentAction } from './appointment-action';
+import { useActionRunner } from './use-action-runner';
 
 interface AppointmentActionsProps<Item extends Appointment> {
   readonly appointment: Item;
@@ -18,22 +23,9 @@ export function AppointmentActions<Item extends Appointment>({
   actions,
   now,
 }: AppointmentActionsProps<Item>) {
-  const [confirming, setConfirming] = useState<AppointmentAction<Item> | null>(null);
-  const [runningId, setRunningId] = useState<string | null>(null);
+  const { runningId, start, confirmation } = useActionRunner(appointment);
   const visible = availableActions(actions, appointment, now);
   if (visible.length === 0) return null;
-
-  const execute = async (action: AppointmentAction<Item>) => {
-    setRunningId(action.id);
-    await action.run(appointment);
-    setRunningId(null);
-    setConfirming(null);
-  };
-
-  const start = (action: AppointmentAction<Item>) => {
-    if (action.confirmation === undefined) void execute(action);
-    else setConfirming(action);
-  };
 
   return (
     <div className="flex flex-wrap gap-2">
@@ -60,24 +52,58 @@ export function AppointmentActions<Item extends Appointment>({
           </Button>
         );
       })}
-      {confirming?.confirmation === undefined ? null : (
-        <ConfirmSurface
-          open
-          onOpenChange={(open) => {
-            if (!open) setConfirming(null);
-          }}
-          title={confirming.confirmation.title(appointment)}
-          description={confirming.confirmation.description(appointment)}
-          confirmLabel={confirming.confirmation.confirmLabel}
-          pendingLabel={confirming.confirmation.pendingLabel}
-          dismissLabel={confirming.confirmation.dismissLabel}
-          tone={confirming.confirmation.tone}
-          pending={runningId === confirming.id}
-          onConfirm={() => {
-            void execute(confirming);
-          }}
-        />
-      )}
+      {confirmation}
     </div>
+  );
+}
+
+interface AppointmentActionsMenuProps<
+  Item extends Appointment,
+> extends AppointmentActionsProps<Item> {
+  readonly label: string;
+}
+
+export function AppointmentActionsMenu<Item extends Appointment>({
+  appointment,
+  actions,
+  now,
+  label,
+}: AppointmentActionsMenuProps<Item>) {
+  const { runningId, start, confirmation } = useActionRunner(appointment);
+  const visible = availableActions(actions, appointment, now);
+  if (visible.length === 0) return null;
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label={label} disabled={runningId !== null}>
+            {runningId === null ? (
+              <EllipsisVertical aria-hidden="true" />
+            ) : (
+              <LoaderCircle className="animate-spin" aria-hidden="true" />
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-48">
+          {visible.map((action) => {
+            const Icon = action.icon;
+            return (
+              <DropdownMenuItem
+                key={action.id}
+                variant={action.variant === 'destructive' ? 'destructive' : 'default'}
+                onSelect={() => {
+                  start(action);
+                }}
+              >
+                <Icon aria-hidden="true" />
+                {action.label}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {confirmation}
+    </>
   );
 }

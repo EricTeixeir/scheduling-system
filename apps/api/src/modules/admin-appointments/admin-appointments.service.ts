@@ -1,20 +1,33 @@
 import {
   appointmentHistorySchema,
+  appointmentSchema,
+  CLIENT_SEARCH_LIMIT,
   type AdminAppointment,
   type AdminAppointmentsQueryOutput,
+  type AdminCreateAppointmentOutput,
+  type AdminSummary,
   type AppointmentHistory,
+  type AppointmentStatus,
   type AppointmentStatusTarget,
+  type ClientSearchResponse,
 } from '@scheduling/shared';
 
 import { decideTransition } from '../../domain/appointment/appointment-status';
 import type { BookingPolicy } from '../../domain/appointment/booking-policy';
 import type { Clock } from '../../domain/time/clock';
-import { localDayRange, zonedInstant } from '../../domain/time/local-date';
+import {
+  addLocalDays,
+  localDateOf,
+  localDayRange,
+  zonedInstant,
+  type LocalDate,
+} from '../../domain/time/local-date';
 import { ConflictError, NotFoundError } from '../../errors/app-errors';
 import { appointmentStatusChangedEvent } from '../appointments/appointment-audit';
 import {
   NOT_FOUND_DETAIL,
   toAppointmentDto,
+  type Book,
   type RequestContext,
 } from '../appointments/appointments.service';
 import { transitionError } from '../appointments/transition-errors';
@@ -25,6 +38,7 @@ import type {
 } from './admin-appointments.ports';
 
 export const NOT_CONFIRMED_DETAIL = 'Somente agendamentos confirmados podem mudar de status.';
+export const CLIENT_NOT_FOUND_DETAIL = 'Cliente não encontrado.';
 
 export interface AdminAppointmentsPage {
   readonly items: AdminAppointment[];
@@ -33,7 +47,22 @@ export interface AdminAppointmentsPage {
   readonly total: number;
 }
 
+export interface AdminCreateAppointmentCommand {
+  readonly idempotencyKey: string;
+  readonly input: AdminCreateAppointmentOutput;
+}
+
+export interface AdminCreateAppointmentResult {
+  readonly status: number;
+  readonly body: AdminAppointment;
+  readonly replayed: boolean;
+}
+
 export interface AdminAppointmentsService {
+  create(
+    context: RequestContext,
+    command: AdminCreateAppointmentCommand,
+  ): Promise<AdminCreateAppointmentResult>;
   list(query: AdminAppointmentsQueryOutput): Promise<AdminAppointmentsPage>;
   updateStatus(
     context: RequestContext,
@@ -41,10 +70,13 @@ export interface AdminAppointmentsService {
     status: AppointmentStatusTarget,
   ): Promise<AdminAppointment>;
   history(id: string): Promise<AppointmentHistory>;
+  searchClients(search: string): Promise<ClientSearchResponse>;
+  summary(): Promise<AdminSummary>;
 }
 
 export interface AdminAppointmentsServiceDependencies {
   readonly appointments: AdminAppointmentRepository;
+  readonly book: Book;
   readonly clock: Clock;
   readonly policy: BookingPolicy;
   readonly timeZone: string;
@@ -57,6 +89,7 @@ export function toAdminAppointmentDto(record: AdminAppointmentRecord): AdminAppo
 
 export function createAdminAppointmentsService({
   appointments,
+  book,
   clock,
   policy,
   timeZone,
@@ -96,7 +129,26 @@ export function createAdminAppointmentsService({
     if (!decision.ok) throw transitionError(decision.reason, NOT_CONFIRMED_DETAIL);
   }
 
+  const startOfDay = (date: LocalDate) => zonedInstant(date, 0, timeZone);
+
+  function countStarting(status: AppointmentStatus, startsFrom: Date, startsBefore: Date) {
+    return appointments.count({ status, startsFrom, startsBefore });
+  }
+
   return {
+    async create(context, { idempotencyKey, input }) {
+      const client = await appointments.findClient(input.clientId);
+      if (client === undefined) throw new NotFoundError(CLIENT_NOT_FOUND_DETAIL);
+      const { status, body, replayed } = await book(context, {
+        ownerId: client.id,
+        idempotencyKey,
+        input,
+      });
+      // The stored response is the plain appointment, keeping the client's name and e-mail out of
+      // idempotency rows; the client is added back on every answer, replays included.
+      return { status, body: { ...appointmentSchema.parse(body), client }, replayed };
+    },
+
     async list(query) {
       const { page, pageSize } = query;
       const result = await appointments.list(filterOf(query));
@@ -136,6 +188,32 @@ export function createAdminAppointmentsService({
       return appointmentHistorySchema.parse({
         items: events.map((event) => ({ ...event, occurredAt: event.occurredAt.toISOString() })),
       });
+    },
+
+    async searchClients(search) {
+      return { items: await appointments.searchClients(search, CLIENT_SEARCH_LIMIT) };
+    },
+
+    async summary() {
+      const now = clock.now();
+      const today = localDateOf(now, timeZone);
+      const startOfToday = startOfDay(today);
+      const startOfTomorrow = startOfDay(addLocalDays(today, 1));
+      const startOfLast30Days = startOfDay(addLocalDays(today, -29));
+      const [todayConfirmed, next7DaysConfirmed, completed, noShow, cancelled] = await Promise.all([
+        countStarting('CONFIRMED', startOfToday, startOfTomorrow),
+        countStarting('CONFIRMED', now, startOfDay(addLocalDays(today, 7))),
+        countStarting('COMPLETED', startOfLast30Days, startOfTomorrow),
+        countStarting('NO_SHOW', startOfLast30Days, startOfTomorrow),
+        countStarting('CANCELLED', startOfLast30Days, startOfTomorrow),
+      ]);
+      return {
+        todayConfirmed,
+        next7DaysConfirmed,
+        completedLast30Days: completed,
+        noShowLast30Days: noShow,
+        cancelledLast30Days: cancelled,
+      };
     },
   };
 }

@@ -5,7 +5,12 @@ import {
   idParamsSchema,
   paginatedSchema,
 } from '@scheduling/shared';
-import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
+import type {
+  FastifyInstance,
+  FastifyPluginAsync,
+  FastifyRequest,
+  preHandlerAsyncHookHandler,
+} from 'fastify';
 
 import { RateLimitedError } from '../../errors/app-errors';
 import { currentUser, type AuthGuards } from '../../http/auth-guards';
@@ -22,9 +27,24 @@ export interface AppointmentsRoutesOptions {
   readonly guards: AuthGuards;
 }
 
-function requestContext(request: FastifyRequest): RequestContext {
+export function requestContext(request: FastifyRequest): RequestContext {
   const { id, role } = currentUser(request);
   return { actor: { id, role }, requestId: request.id };
+}
+
+export function bookingRateLimit(app: FastifyInstance): preHandlerAsyncHookHandler {
+  const checkLimit = app.createRateLimit({
+    max: CREATE_REQUESTS_PER_USER_PER_MINUTE,
+    timeWindow: '1 minute',
+    keyGenerator: (request) => `create-appointment|${currentUser(request).id}`,
+  });
+  return async (request, reply) => {
+    const limit = await checkLimit(request);
+    if (!limit.isAllowed && limit.isExceeded) {
+      reply.header('retry-after', String(limit.ttlInSeconds));
+      throw new RateLimitedError();
+    }
+  };
 }
 
 export const appointmentsRoutes: FastifyPluginAsync<AppointmentsRoutesOptions> = (
@@ -32,35 +52,15 @@ export const appointmentsRoutes: FastifyPluginAsync<AppointmentsRoutesOptions> =
   { service, guards },
 ) => {
   const clientOnly = [guards.requireAuth, guards.requireRole('CLIENT')];
-  const checkCreateLimit = app.createRateLimit({
-    max: CREATE_REQUESTS_PER_USER_PER_MINUTE,
-    timeWindow: '1 minute',
-    keyGenerator: (request) => `create-appointment|${currentUser(request).id}`,
-  });
 
-  app.post(
-    '/',
-    {
-      preHandler: [
-        ...clientOnly,
-        async (request, reply) => {
-          const limit = await checkCreateLimit(request);
-          if (!limit.isAllowed && limit.isExceeded) {
-            reply.header('retry-after', String(limit.ttlInSeconds));
-            throw new RateLimitedError();
-          }
-        },
-      ],
-    },
-    async (request, reply) => {
-      const idempotencyKey = parseIdempotencyKey(request.headers['idempotency-key']);
-      const input = parseInput(createAppointmentSchema, request.body);
-      const result = await service.create(requestContext(request), { idempotencyKey, input });
-      if (result.replayed) reply.header(IDEMPOTENT_REPLAY_HEADER, 'true');
-      // jsonb reorders object keys; re-parsing restores the field order, so a replay is byte-identical.
-      return reply.code(result.status).send(appointmentSchema.parse(result.body));
-    },
-  );
+  app.post('/', { preHandler: [...clientOnly, bookingRateLimit(app)] }, async (request, reply) => {
+    const idempotencyKey = parseIdempotencyKey(request.headers['idempotency-key']);
+    const input = parseInput(createAppointmentSchema, request.body);
+    const result = await service.create(requestContext(request), { idempotencyKey, input });
+    if (result.replayed) reply.header(IDEMPOTENT_REPLAY_HEADER, 'true');
+    // jsonb reorders object keys; re-parsing restores the field order, so a replay is byte-identical.
+    return reply.code(result.status).send(appointmentSchema.parse(result.body));
+  });
 
   app.get('/', { preHandler: clientOnly }, async (request) => {
     const query = parseInput(clientAppointmentsQuerySchema, request.query);

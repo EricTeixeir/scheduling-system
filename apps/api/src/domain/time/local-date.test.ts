@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  addLocalDays,
   assertValidTimeZone,
   localDateOf,
   localDayRange,
@@ -75,6 +76,21 @@ describe('weekdayOf', () => {
 
   it('throws on an invalid date', () => {
     expect(() => weekdayOf('2026-02-30')).toThrow('YYYY-MM-DD');
+  });
+});
+
+describe('addLocalDays', () => {
+  it.each([
+    ['2026-10-06', 6, '2026-10-12'],
+    ['2026-10-06', -29, '2026-09-07'],
+    ['2026-12-31', 1, '2027-01-01'],
+    ['2028-03-01', -1, '2028-02-29'],
+  ])('moves %s by %i days to %s', (date, days, expected) => {
+    expect(addLocalDays(date, days)).toBe(expected);
+  });
+
+  it('refuses a date that does not exist', () => {
+    expect(() => addLocalDays('2026-02-30', 1)).toThrow(RangeError);
   });
 });
 

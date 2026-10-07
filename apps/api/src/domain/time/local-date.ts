@@ -52,6 +52,11 @@ export function weekdayOf(date: LocalDate): number {
   return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
 }
 
+export function addLocalDays(date: LocalDate, days: number): LocalDate {
+  const { year, month, day } = parseLocalDate(date);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
 export function zonedInstant(date: LocalDate, minuteOfDay: number, timeZone: string): Date {
   assertValidTimeZone(timeZone);
   const { year, month, day } = parseLocalDate(date);
@@ -63,8 +68,8 @@ export function zonedInstant(date: LocalDate, minuteOfDay: number, timeZone: str
 // The whole local calendar day as instants: [00:00 of date, 00:00 of the next day).
 // Not always 24 h long: a DST change makes the day shorter or longer.
 export function localDayRange(date: LocalDate, timeZone: string): TimeRange {
-  const { year, month, day } = parseLocalDate(date);
-  const next = new Date(Date.UTC(year, month - 1, day + 1));
-  const nextDate = next.toISOString().slice(0, 10);
-  return { startsAt: zonedInstant(date, 0, timeZone), endsAt: zonedInstant(nextDate, 0, timeZone) };
+  return {
+    startsAt: zonedInstant(date, 0, timeZone),
+    endsAt: zonedInstant(addLocalDays(date, 1), 0, timeZone),
+  };
 }

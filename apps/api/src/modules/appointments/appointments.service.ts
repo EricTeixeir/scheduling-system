@@ -31,7 +31,12 @@ import type {
   AppointmentRepository,
   StoredResponse,
 } from './appointments.ports';
-import { IDEMPOTENCY_KEY_TTL_HOURS, IdempotencyKeyTakenError, requestHashOf } from './idempotency';
+import {
+  IDEMPOTENCY_KEY_TTL_HOURS,
+  IdempotencyKeyTakenError,
+  requestHashOf,
+  type BookingInput,
+} from './idempotency';
 import { transitionError } from './transition-errors';
 
 export const KEY_IN_FLIGHT_DETAIL =
@@ -49,6 +54,17 @@ export interface CreateAppointmentCommand {
   readonly idempotencyKey: string;
   readonly input: CreateAppointmentOutput;
 }
+
+export interface BookingRequest {
+  readonly ownerId: string;
+  readonly idempotencyKey: string;
+  readonly input: BookingInput;
+}
+
+export type Book = (
+  context: RequestContext,
+  request: BookingRequest,
+) => Promise<CreateAppointmentResult>;
 
 export interface CreateAppointmentResult extends StoredResponse {
   readonly replayed: boolean;
@@ -93,13 +109,14 @@ function idempotencyCutoff(now: Date): Date {
   return addMinutes(now, -IDEMPOTENCY_KEY_TTL_HOURS * 60);
 }
 
-export function createAppointmentsService({
+// The idempotency key belongs to the actor (who sent the request); the appointment to the owner.
+export function createBooking({
   appointments,
   schedule,
   clock,
   policy,
   timeZone,
-}: AppointmentsServiceDependencies): AppointmentsService {
+}: AppointmentsServiceDependencies): Book {
   async function storedReplay(
     userId: string,
     key: string,
@@ -128,6 +145,57 @@ export function createAppointmentsService({
     return slot.value;
   }
 
+  return async ({ actor, requestId }, { ownerId, idempotencyKey, input }) => {
+    const now = clock.now();
+    const requestHash = requestHashOf(input);
+    const replay = await storedReplay(actor.id, idempotencyKey, requestHash, now);
+    if (replay !== undefined) return replay;
+
+    const slot = await resolveBookableSlot(new Date(input.startsAt), now);
+    const appointment: AppointmentRecord = {
+      id: randomUUID(),
+      userId: ownerId,
+      startsAt: slot.startsAt,
+      endsAt: slot.endsAt,
+      status: 'CONFIRMED',
+      notes: input.notes ?? null,
+      createdAt: now,
+    };
+    const response: StoredResponse = { status: 201, body: toAppointmentDto(appointment) };
+
+    // The key is stored only with a successful booking, so a refused request can be retried
+    // with the same key. It is claimed first: a concurrent duplicate waits on its unique index.
+    try {
+      await appointments.transaction(
+        async (tx) => {
+          await tx.claimIdempotencyKey(
+            { userId: actor.id, key: idempotencyKey, requestHash, response, createdAt: now },
+            idempotencyCutoff(now),
+          );
+          await tx.insertAppointment(appointment);
+          await tx.audit.append(appointmentCreatedEvent({ actor, requestId, now }, appointment));
+        },
+        { onContention: 'SLOT_TAKEN' },
+      );
+    } catch (error) {
+      if (!(error instanceof IdempotencyKeyTakenError)) throw error;
+      const winner = await storedReplay(actor.id, idempotencyKey, requestHash, now);
+      if (winner === undefined) throw new ConflictError('CONFLICT', KEY_IN_FLIGHT_DETAIL);
+      return winner;
+    }
+    return { ...response, replayed: false };
+  };
+}
+
+export function createAppointmentsService({
+  appointments,
+  schedule,
+  clock,
+  policy,
+  timeZone,
+}: AppointmentsServiceDependencies): AppointmentsService {
+  const book = createBooking({ appointments, schedule, clock, policy, timeZone });
+
   function assertCancellable(appointment: AppointmentRecord, actor: Actor, now: Date): void {
     const decision = decideTransition({
       from: appointment.status,
@@ -141,45 +209,8 @@ export function createAppointmentsService({
   }
 
   return {
-    async create({ actor, requestId }, { idempotencyKey, input }) {
-      const now = clock.now();
-      const requestHash = requestHashOf(input);
-      const replay = await storedReplay(actor.id, idempotencyKey, requestHash, now);
-      if (replay !== undefined) return replay;
-
-      const slot = await resolveBookableSlot(new Date(input.startsAt), now);
-      const appointment: AppointmentRecord = {
-        id: randomUUID(),
-        userId: actor.id,
-        startsAt: slot.startsAt,
-        endsAt: slot.endsAt,
-        status: 'CONFIRMED',
-        notes: input.notes ?? null,
-        createdAt: now,
-      };
-      const response: StoredResponse = { status: 201, body: toAppointmentDto(appointment) };
-
-      // The key is stored only with a successful booking, so a refused request can be retried
-      // with the same key. It is claimed first: a concurrent duplicate waits on its unique index.
-      try {
-        await appointments.transaction(
-          async (tx) => {
-            await tx.claimIdempotencyKey(
-              { userId: actor.id, key: idempotencyKey, requestHash, response, createdAt: now },
-              idempotencyCutoff(now),
-            );
-            await tx.insertAppointment(appointment);
-            await tx.audit.append(appointmentCreatedEvent({ actor, requestId, now }, appointment));
-          },
-          { onContention: 'SLOT_TAKEN' },
-        );
-      } catch (error) {
-        if (!(error instanceof IdempotencyKeyTakenError)) throw error;
-        const winner = await storedReplay(actor.id, idempotencyKey, requestHash, now);
-        if (winner === undefined) throw new ConflictError('CONFLICT', KEY_IN_FLIGHT_DETAIL);
-        return winner;
-      }
-      return { ...response, replayed: false };
+    create(context, { idempotencyKey, input }) {
+      return book(context, { ownerId: context.actor.id, idempotencyKey, input });
     },
 
     async listOwn(userId, { scope, page, pageSize }) {

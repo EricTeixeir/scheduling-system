@@ -1,0 +1,49 @@
+import type { ClientSummary, Slot } from '@scheduling/shared';
+import { useState } from 'react';
+
+import { BookingConfirmation } from '../booking/booking-confirmation';
+import { ClientCombobox } from './client-combobox';
+
+interface BookForClientConfirmationProps {
+  readonly slot: Slot;
+  readonly timeZone: string;
+  readonly pending: boolean;
+  readonly onConfirm: (client: ClientSummary, notes: string) => void;
+  readonly onDismiss: () => void;
+}
+
+export function BookForClientConfirmation({
+  slot,
+  timeZone,
+  pending,
+  onConfirm,
+  onDismiss,
+}: BookForClientConfirmationProps) {
+  const [client, setClient] = useState<ClientSummary | null>(null);
+  const [clientError, setClientError] = useState<string>();
+
+  return (
+    <BookingConfirmation
+      slot={slot}
+      timeZone={timeZone}
+      pending={pending}
+      onDismiss={onDismiss}
+      title="Agendar para cliente"
+      description="Escolha o cliente e revise o dia e o horário."
+      onConfirm={(notes) => {
+        if (client === null) setClientError('Escolha um cliente da lista.');
+        else onConfirm(client, notes);
+      }}
+    >
+      <ClientCombobox
+        selected={client}
+        error={clientError}
+        disabled={pending}
+        onSelect={(next) => {
+          setClient(next);
+          setClientError(undefined);
+        }}
+      />
+    </BookingConfirmation>
+  );
+}

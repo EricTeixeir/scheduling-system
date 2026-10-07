@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  formatDayMonth,
   formatDayTitle,
   formatMonthSpan,
   formatTime,
   formatTimeRange,
   hourOf,
+  nameOfWeekday,
   shortWeekdayName,
   weekdayName,
 } from './format';
@@ -49,6 +51,11 @@ describe('formatting', () => {
   it('names weekdays in full and short form', () => {
     expect(weekdayName('2026-10-10')).toBe('Sábado');
     expect(shortWeekdayName('2026-10-06')).toBe('Ter');
+    expect(nameOfWeekday(0)).toBe('Domingo');
+  });
+
+  it('shows a short day and month like "05/10"', () => {
+    expect(formatDayMonth('2026-10-05')).toBe('05/10');
   });
 
   it.each([

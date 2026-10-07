@@ -1,6 +1,6 @@
 import { NOTES_MAX_LENGTH, type Slot } from '@scheduling/shared';
 import { CalendarDays, Clock } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { ConfirmSurface } from '@/components/confirm-surface';
 import { FormField } from '@/components/form/form-field';
@@ -14,6 +14,9 @@ interface BookingConfirmationProps {
   readonly pending: boolean;
   readonly onConfirm: (notes: string) => void;
   readonly onDismiss: () => void;
+  readonly title?: string;
+  readonly description?: string;
+  readonly children?: ReactNode;
 }
 
 export function BookingConfirmation({
@@ -22,6 +25,9 @@ export function BookingConfirmation({
   pending,
   onConfirm,
   onDismiss,
+  title = 'Confirmar agendamento',
+  description = 'Revise o dia e o horário antes de confirmar.',
+  children,
 }: BookingConfirmationProps) {
   const [notes, setNotes] = useState('');
 
@@ -31,8 +37,8 @@ export function BookingConfirmation({
       onOpenChange={(open) => {
         if (!open) onDismiss();
       }}
-      title="Confirmar agendamento"
-      description="Revise o dia e o horário antes de confirmar."
+      title={title}
+      description={description}
       confirmLabel="Confirmar agendamento"
       pendingLabel="Confirmando…"
       dismissLabel="Cancelar"
@@ -58,6 +64,7 @@ export function BookingConfirmation({
             <dd className="font-medium tabular-nums">{appointmentTimeRange(slot, timeZone)}</dd>
           </div>
         </dl>
+        {children}
         <FormField
           label="Observações (opcional)"
           hint={`${String(notes.length)}/${String(NOTES_MAX_LENGTH)} caracteres`}

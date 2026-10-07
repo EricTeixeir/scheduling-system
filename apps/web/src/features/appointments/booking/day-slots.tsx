@@ -17,7 +17,7 @@ interface DaySlotsProps {
   readonly state: DaySlotsState;
   readonly selectedStartsAt: string | null;
   readonly onSelectSlot: (slot: Slot) => void;
-  readonly onOpenMine: (appointmentId: string) => void;
+  readonly onOpenMine?: ((appointmentId: string) => void) | undefined;
   readonly onRetry: () => void;
   readonly onNextDay: () => void;
 }

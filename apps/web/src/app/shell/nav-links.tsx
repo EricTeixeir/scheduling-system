@@ -20,6 +20,7 @@ export function NavLinks({ role, orientation, onNavigate }: NavLinksProps) {
         <li key={to}>
           <NavLink
             to={to}
+            end
             onClick={onNavigate}
             className={({ isActive }) =>
               cn(

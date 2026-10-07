@@ -12,11 +12,15 @@ export class IdempotencyKeyTakenError extends Error {
   }
 }
 
+export type BookingInput = CreateAppointmentOutput & { readonly clientId?: string };
+
 // Equivalent bodies hash the same: the instant is normalized to UTC and absent notes equal null.
-export function requestHashOf({ startsAt, notes }: CreateAppointmentOutput): string {
+// clientId (admin booking) enters only when present, so stored client hashes keep matching.
+export function requestHashOf({ startsAt, notes, clientId }: BookingInput): string {
   const canonical = JSON.stringify({
     startsAt: new Date(startsAt).toISOString(),
     notes: notes ?? null,
+    ...(clientId === undefined ? {} : { clientId }),
   });
   return createHash('sha256').update(canonical).digest('hex');
 }
