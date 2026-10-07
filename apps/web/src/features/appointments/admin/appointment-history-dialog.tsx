@@ -9,12 +9,12 @@ import { ROLE_LABELS } from '@/app/navigation';
 import { InlineState } from '@/components/states/inline-state';
 import { Button } from '@/components/ui/button';
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { messageFor } from '@/lib/errors/messages';
 import { BUSINESS_TIME_ZONE } from '@/lib/time/business-time-zone';
@@ -42,33 +42,33 @@ function occurredAtLabel(occurredAt: string): string {
   return `${day} às ${formatTime(occurredAt, BUSINESS_TIME_ZONE)}`;
 }
 
-interface AppointmentHistorySheetProps {
+interface AppointmentHistoryDialogProps {
   readonly appointment: AdminAppointment | null;
   readonly onClose: () => void;
 }
 
-export function AppointmentHistorySheet({ appointment, onClose }: AppointmentHistorySheetProps) {
+export function AppointmentHistoryDialog({ appointment, onClose }: AppointmentHistoryDialogProps) {
   return (
-    <Sheet
+    <Dialog
       open={appointment !== null}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
     >
-      <SheetContent side="right" className="w-full gap-0 overflow-y-auto sm:max-w-md">
-        <SheetHeader className="pr-14">
-          <SheetTitle className="text-lg">Histórico</SheetTitle>
-          <SheetDescription>
+      <DialogContent className="max-h-[85dvh] grid-rows-[auto_minmax(0,1fr)]">
+        <DialogHeader className="pr-10">
+          <DialogTitle>Histórico</DialogTitle>
+          <DialogDescription>
             {appointment === null
               ? null
               : `${appointment.client.name} · ${appointmentWhen(appointment, BUSINESS_TIME_ZONE)}`}
-          </SheetDescription>
-        </SheetHeader>
-        <div className="px-4 pb-6">
+          </DialogDescription>
+        </DialogHeader>
+        <div className="-ml-2 overflow-y-auto pt-1 pl-2">
           {appointment === null ? null : <HistoryTimeline appointmentId={appointment.id} />}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
