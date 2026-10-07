@@ -18,6 +18,7 @@ USER root
 RUN rm -f /etc/nginx/conf.d/default.conf
 USER nginx
 COPY apps/web/nginx.conf /etc/nginx/nginx.conf
+COPY --chmod=755 apps/web/announce-url.sh /docker-entrypoint.d/99-announce-url.sh
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=5 \
