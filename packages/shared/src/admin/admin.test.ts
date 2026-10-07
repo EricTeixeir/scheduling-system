@@ -21,6 +21,17 @@ describe('adminCreateAppointmentSchema', () => {
     ).toEqual({ clientId: CLIENT_ID, startsAt: STARTS_AT });
   });
 
+  it('keeps a duration and refuses one over the maximum', () => {
+    const base = { clientId: CLIENT_ID, startsAt: STARTS_AT };
+    expect(adminCreateAppointmentSchema.parse({ ...base, durationMinutes: 60 })).toEqual({
+      ...base,
+      durationMinutes: 60,
+    });
+    expect(adminCreateAppointmentSchema.safeParse({ ...base, durationMinutes: 181 }).success).toBe(
+      false,
+    );
+  });
+
   it('rejects a missing client, a bad id and extra fields', () => {
     expect(adminCreateAppointmentSchema.safeParse({ startsAt: STARTS_AT }).success).toBe(false);
     expect(
