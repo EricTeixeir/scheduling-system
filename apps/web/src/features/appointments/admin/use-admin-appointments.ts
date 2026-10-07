@@ -2,6 +2,7 @@ import type { AdminAppointmentsQueryInput, AppointmentStatusTarget } from '@sche
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useApiClient } from '@/lib/api/api-client-context';
+import type { LocalDate } from '@/lib/time/local-date';
 
 import { appointmentKeys } from '../shared/appointment-query-keys';
 import {
@@ -9,6 +10,7 @@ import {
   fetchAdminAppointments,
   fetchAdminSummary,
   fetchAppointmentHistory,
+  fetchConfirmedAppointmentsOn,
   searchClients,
   updateAppointmentStatus,
   type BookForClientRequest,
@@ -20,6 +22,14 @@ export function useAdminAppointments(query: AdminAppointmentsQueryInput) {
     queryKey: appointmentKeys.adminList(query),
     queryFn: ({ signal }) => fetchAdminAppointments(api, query, signal),
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useConfirmedAppointmentsOn(date: LocalDate) {
+  const api = useApiClient();
+  return useQuery({
+    queryKey: appointmentKeys.confirmedOn(date),
+    queryFn: ({ signal }) => fetchConfirmedAppointmentsOn(api, date, signal),
   });
 }
 

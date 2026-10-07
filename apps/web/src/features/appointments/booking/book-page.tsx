@@ -13,6 +13,7 @@ import { useMyAppointments } from '../my-appointments/use-my-appointments';
 import { appointmentWhen } from '../shared/appointment-format';
 import { createAttemptKeys } from './attempt-keys';
 import { BookingConfirmation } from './booking-confirmation';
+import { mySlotsOf } from './grid-slots';
 import { SlotPicker } from './slot-picker';
 import { useBookAppointment } from './use-booking';
 
@@ -92,7 +93,7 @@ export function BookPage() {
       </header>
       <SlotPicker
         today={localDateOf(clock.now(), BUSINESS_TIME_ZONE)}
-        myAppointments={myAppointments}
+        occupied={{ status: 'ready', slots: mySlotsOf(myAppointments) }}
         selectedStartsAt={chosen?.slot.startsAt ?? null}
         onSelectSlot={flow.choose}
         onOpenMine={flow.openMine}
