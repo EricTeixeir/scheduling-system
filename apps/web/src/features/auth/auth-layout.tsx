@@ -12,9 +12,12 @@ export function AuthLayout() {
   const { pathname } = useLocation();
 
   return (
-    <div className="relative flex min-h-dvh flex-col bg-linear-to-b from-accent/70 via-background to-background">
+    <div className="group relative flex min-h-dvh flex-col bg-linear-to-b from-accent/70 via-background to-background">
       {supportsWebGl ? (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        <div
+          className="pointer-events-none absolute inset-0 overflow-hidden transition-[filter,opacity] duration-500 group-has-[main_form:focus-within]:opacity-40 group-has-[main_form:focus-within]:blur-xs group-has-[main_form:hover]:opacity-40 group-has-[main_form:hover]:blur-xs motion-reduce:transition-none"
+          aria-hidden="true"
+        >
           <Suspense fallback={null}>
             <LoginGalaxy />
           </Suspense>
