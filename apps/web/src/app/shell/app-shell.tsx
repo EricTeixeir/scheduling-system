@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 
 import { Brand } from '@/components/brand';
@@ -5,22 +6,35 @@ import { AppErrorBoundary } from '@/components/error-boundary/app-error-boundary
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useLogout } from '@/features/auth/use-auth-mutations';
 import { useAuthenticatedUser } from '@/features/auth/authenticated-user';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 import { PATHS } from '../navigation';
 import { MobileNav } from './mobile-nav';
 import { NavLinks } from './nav-links';
 import { UserMenu } from './user-menu';
 
+const AppDotField = lazy(() => import('@/components/backgrounds/app-dot-field'));
+const DOT_FIELD_MEDIA =
+  '(min-width: 1024px) and (pointer: fine) and (prefers-reduced-motion: no-preference)';
+
 export function AppShell() {
   const user = useAuthenticatedUser();
   const { pathname } = useLocation();
   const logoutMutation = useLogout();
+  const showDotField = useMediaQuery(DOT_FIELD_MEDIA);
   const logout = () => {
     logoutMutation.mutate();
   };
 
   return (
     <div className="flex min-h-dvh flex-col">
+      {showDotField ? (
+        <div className="pointer-events-none fixed inset-0" aria-hidden="true">
+          <Suspense fallback={null}>
+            <AppDotField />
+          </Suspense>
+        </div>
+      ) : null}
       <a
         href="#conteudo"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:shadow"
@@ -50,7 +64,10 @@ export function AppShell() {
           </div>
         </div>
       </header>
-      <main id="conteudo" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-10">
+      <main
+        id="conteudo"
+        className="relative mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-10"
+      >
         <AppErrorBoundary scope="page" resetKeys={[pathname]}>
           <Outlet />
         </AppErrorBoundary>

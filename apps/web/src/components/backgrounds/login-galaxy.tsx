@@ -1,16 +1,11 @@
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useTheme } from '@/lib/theme/theme-context';
 
+import { cssColorAsRgb } from './css-color';
 import { Galaxy, type Rgb } from './galaxy';
 
-const WHITE: Rgb = [1, 1, 1];
-
 function primaryColorAsRgb(): Rgb {
-  const context = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
-  if (!context) return WHITE;
-  context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--primary');
-  context.fillRect(0, 0, 1, 1);
-  const [red = 255, green = 255, blue = 255] = context.getImageData(0, 0, 1, 1).data;
+  const [red, green, blue] = cssColorAsRgb('--primary') ?? [255, 255, 255];
   return [red / 255, green / 255, blue / 255];
 }
 
