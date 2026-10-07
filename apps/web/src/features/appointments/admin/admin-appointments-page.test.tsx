@@ -122,6 +122,8 @@ describe('AdminAppointmentsPage', () => {
     const { user, router } = setup(
       {
         [FROM_TODAY]: page([started]),
+        'GET /admin/appointments?page=1&pageSize=50&status=CONFIRMED&from=2026-10-07&to=2026-10-07':
+          page([]),
         ...Object.fromEntries(
           consecutiveDays('2026-10-07', 7).map((date) => [
             `GET /availability?date=${date}`,

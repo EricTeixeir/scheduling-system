@@ -30,6 +30,18 @@ describe('requestHashOf', () => {
       'd0ad54b888b4759422d5d50ff86323287ee514003c6a4734749dd25378ba31df',
     );
   });
+
+  it('distinguishes the duration only when one is sent', () => {
+    const startsAt = '2026-10-06T13:00:00Z';
+    const withoutDuration = requestHashOf({ startsAt });
+    expect(requestHashOf({ startsAt, durationMinutes: 60 })).not.toBe(withoutDuration);
+    expect(requestHashOf({ startsAt, durationMinutes: 60 })).not.toBe(
+      requestHashOf({ startsAt, durationMinutes: 90 }),
+    );
+    expect(withoutDuration).toBe(
+      'd0ad54b888b4759422d5d50ff86323287ee514003c6a4734749dd25378ba31df',
+    );
+  });
 });
 
 describe('parseIdempotencyKey', () => {

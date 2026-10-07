@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatDayMonth,
   formatDayTitle,
+  formatDuration,
   formatMonthSpan,
   formatTime,
   formatTimeRange,
@@ -72,6 +73,16 @@ describe('formatting', () => {
     expect(formatTimeRange('2026-10-07T13:00:00.000Z', '2026-10-07T13:30:00.000Z', SAO_PAULO)).toBe(
       '10:00 – 10:30',
     );
+  });
+
+  it.each([
+    [30, '30 min'],
+    [60, '1h'],
+    [90, '1h30'],
+    [65, '1h05'],
+    [180, '3h'],
+  ])('shows %i minutes as %j', (minutes, label) => {
+    expect(formatDuration(minutes)).toBe(label);
   });
 
   it('reads the local hour of an instant', () => {

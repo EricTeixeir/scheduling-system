@@ -164,6 +164,42 @@ describe('BookPage', () => {
     expect(router.state.location.search).toBe(`?destaque=${bookedAppointment(slot).id}`);
   });
 
+  it('books several consecutive slots with the duration slider', async () => {
+    const times = ['10:00', '10:30', '11:00', '11:30', '14:00'];
+    const slot = slotOn(TODAY, '10:00');
+    const ninetyMinutes = bookedAppointment({ ...slot, endsAt: slotOn(TODAY, '11:30').startsAt });
+    const { user, callsTo } = setup(
+      twoWeeksOfAvailability({
+        [`GET /availability?date=${TODAY}`]: [
+          availability(TODAY, times),
+          availability(TODAY, ['11:30', '14:00']),
+        ],
+        [UPCOMING]: [upcoming(), upcoming([ninetyMinutes])],
+        'POST /appointments': () => jsonResponse(ninetyMinutes, 201),
+      }),
+    );
+
+    const dialog = await openSlot(user, '10:00');
+    within(dialog).getByRole('slider', { name: 'Duração' }).focus();
+    await user.keyboard('{ArrowRight}{ArrowRight}');
+
+    expect(within(dialog).getByText('10:00 – 11:30 · 1h30')).toBeVisible();
+    for (const time of ['10:30', '11:00']) {
+      expect(screen.getByRole('button', { name: time, hidden: true })).toHaveAttribute(
+        'data-coverage',
+        'covered',
+      );
+    }
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmar agendamento' }));
+
+    expect(await screen.findByText('Agendamento confirmado')).toBeVisible();
+    const [booking] = callsTo('POST', '/appointments');
+    expect(booking?.body).toEqual({ startsAt: slot.startsAt, durationMinutes: 90 });
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: /seu agendamento/ })).toHaveLength(3);
+    });
+  });
+
   it('highlights the chosen slot while confirming', async () => {
     const { user } = setup(twoWeeksOfAvailability());
 

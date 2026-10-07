@@ -186,6 +186,80 @@ describe('create: schedule blocks', () => {
     const result = await service.create(context(), command({ startsAt: TUESDAY_10AM }));
     expect(result.status).toBe(201);
   });
+  it('refuses a longer booking that reaches into a later block (409 SLOT_BLOCKED)', async () => {
+    const { service, store } = setup();
+    const block = blockFrom('11:00', '11:30');
+    store.blocks.set(block.id, block);
+    const error = await refusal(
+      service.create(context(), command({ startsAt: TUESDAY_10AM, durationMinutes: 90 })),
+    );
+    expect(error).toMatchObject({ status: 409, code: 'SLOT_BLOCKED' });
+    expect(store.appointments.size).toBe(0);
+  });
+});
+
+describe('create: duration', () => {
+  it('books consecutive slots, ending the appointment and its audit after the duration', async () => {
+    const { service, store } = setup();
+    const result = await service.create(
+      context(),
+      command({ startsAt: TUESDAY_10AM, durationMinutes: 90 }),
+    );
+    expect(result.status).toBe(201);
+    expect(appointmentSchema.parse(result.body)).toMatchObject({
+      startsAt: TUESDAY_10AM_UTC,
+      endsAt: '2026-10-06T14:30:00.000Z',
+    });
+    expect(store.auditEvents[0]).toMatchObject({
+      metadata: { startsAt: TUESDAY_10AM_UTC, endsAt: '2026-10-06T14:30:00.000Z' },
+    });
+  });
+
+  it('books a range that ends exactly at closing time', async () => {
+    const { service } = setup();
+    const result = await service.create(
+      context(),
+      command({ startsAt: '2026-10-06T17:00:00-03:00', durationMinutes: 60 }),
+    );
+    expect(appointmentSchema.parse(result.body).endsAt).toBe('2026-10-06T21:00:00.000Z');
+  });
+
+  it.each([
+    ['not a multiple of the slot', 45],
+    ['over the maximum', 210],
+  ])('refuses a duration %s with 422 INVALID_DURATION', async (_label, durationMinutes) => {
+    const { service, store } = setup();
+    const error = await refusal(
+      service.create(context(), command({ startsAt: TUESDAY_10AM, durationMinutes })),
+    );
+    expect(error).toMatchObject({ status: 422, code: 'INVALID_DURATION' });
+    expect(store.appointments.size).toBe(0);
+  });
+
+  it('refuses a range that crosses closing time with 422 OUTSIDE_BUSINESS_HOURS', async () => {
+    const { service } = setup();
+    const error = await refusal(
+      service.create(
+        context(),
+        command({ startsAt: '2026-10-06T17:00:00-03:00', durationMinutes: 90 }),
+      ),
+    );
+    expect(error).toMatchObject({ status: 422, code: 'OUTSIDE_BUSINESS_HOURS' });
+  });
+
+  it('answers SLOT_TAKEN (409) when the range overlaps a later appointment', async () => {
+    const { service, store } = setup();
+    insert(
+      store,
+      appointmentRow({ userId: OTHER_CLIENT.id, startsAt: new Date('2026-10-06T14:00:00.000Z') }),
+    );
+    const error = await refusal(
+      service.create(context(), command({ startsAt: TUESDAY_10AM, durationMinutes: 90 })),
+    );
+    expect(error).toMatchObject({ status: 409, code: 'SLOT_TAKEN' });
+    expect(store.appointments.size).toBe(1);
+    expect(store.idempotencyKeys.size).toBe(0);
+  });
 });
 
 describe('create: idempotency', () => {

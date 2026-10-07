@@ -1,9 +1,11 @@
+import { MAX_APPOINTMENT_MINUTES } from '@scheduling/shared';
+
 import {
   assertValidPolicy,
   checkBookingWindow,
   type BookingPolicy,
 } from '../appointment/booking-policy';
-import { assertValidInstant, minutesBetween } from '../time/instant';
+import { addMinutes, assertValidInstant, minutesBetween } from '../time/instant';
 import {
   assertValidTimeZone,
   localDateOf,
@@ -12,7 +14,7 @@ import {
 } from '../time/local-date';
 import { fail, ok, type Result } from '../result';
 import { overlaps, type TimeRange } from '../time/time-range';
-import { businessDayOf, slotsOf, type WeeklyHours } from './weekly-hours';
+import { businessDayOf, slotsOf, type BusinessDay, type WeeklyHours } from './weekly-hours';
 
 export interface AvailableSlotsQuery {
   readonly date: LocalDate;
@@ -39,18 +41,19 @@ export function listAvailableSlots(query: AvailableSlotsQuery): TimeRange[] {
   );
 }
 
-export type SlotRefusal = 'CLOSED_DATE' | 'OUTSIDE_BUSINESS_HOURS' | 'MISALIGNED';
+export type SlotRefusal =
+  'CLOSED_DATE' | 'OUTSIDE_BUSINESS_HOURS' | 'MISALIGNED' | 'INVALID_DURATION';
 
 export interface SlotRequest {
   readonly startsAt: Date;
+  readonly durationMinutes?: number | undefined;
   readonly hours: WeeklyHours | null;
   readonly isClosedDate: boolean;
   readonly timeZone: string;
 }
 
-// The client only picks the start; the end always comes from the slot grid.
 export function resolveRequestedSlot(request: SlotRequest): Result<TimeRange, SlotRefusal> {
-  const { startsAt, hours, isClosedDate, timeZone } = request;
+  const { startsAt, durationMinutes, hours, isClosedDate, timeZone } = request;
   assertValidInstant(startsAt, 'startsAt');
   assertValidTimeZone(timeZone);
   if (hours === null || isClosedDate) return fail('CLOSED_DATE');
@@ -59,11 +62,29 @@ export function resolveRequestedSlot(request: SlotRequest): Result<TimeRange, Sl
   const slot = slotsOf(day).find(
     (candidate) => candidate.startsAt.getTime() === startsAt.getTime(),
   );
-  if (slot) return ok(slot);
+  if (!slot) return refuseUnlistedStart(day, startsAt);
+  if (durationMinutes === undefined) return ok(slot);
+  if (!isWholeSlotDuration(durationMinutes, day.slotMinutes)) return fail('INVALID_DURATION');
 
+  const endsAt = addMinutes(slot.startsAt, durationMinutes);
+  return endsAt.getTime() <= day.window.endsAt.getTime()
+    ? ok({ startsAt: slot.startsAt, endsAt })
+    : fail('OUTSIDE_BUSINESS_HOURS');
+}
+
+function refuseUnlistedStart(day: BusinessDay, startsAt: Date): Result<never, SlotRefusal> {
   const sinceOpening = minutesBetween(day.window.startsAt, startsAt);
   const withinHours = sinceOpening >= 0 && startsAt.getTime() < day.window.endsAt.getTime();
   return withinHours && sinceOpening % day.slotMinutes !== 0
     ? fail('MISALIGNED')
     : fail('OUTSIDE_BUSINESS_HOURS');
+}
+
+function isWholeSlotDuration(durationMinutes: number, slotMinutes: number): boolean {
+  return (
+    Number.isInteger(durationMinutes) &&
+    durationMinutes > 0 &&
+    durationMinutes <= MAX_APPOINTMENT_MINUTES &&
+    durationMinutes % slotMinutes === 0
+  );
 }

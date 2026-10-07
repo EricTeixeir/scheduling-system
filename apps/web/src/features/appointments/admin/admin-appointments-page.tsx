@@ -21,7 +21,7 @@ import { periodRange, type Period, type StatusFilter } from './admin-appointment
 import { pageCountOf } from './admin-appointments-api';
 import { AdminAvailableSlots } from './admin-available-slots';
 import { AdminSummaryCards } from './admin-summary-cards';
-import { AppointmentHistorySheet } from './appointment-history-sheet';
+import { AppointmentHistoryDialog } from './appointment-history-dialog';
 import { useAdminAppointments } from './use-admin-appointments';
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -162,7 +162,7 @@ function ScheduledAppointments() {
           />
         </div>
       )}
-      <AppointmentHistorySheet
+      <AppointmentHistoryDialog
         appointment={historyFor}
         onClose={() => {
           setHistoryFor(null);

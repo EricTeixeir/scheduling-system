@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createAttemptKeys } from './attempt-keys';
 import { groupSlotsByPeriod } from './day-periods';
-import { gridSlotsOf } from './grid-slots';
+import { durationLimitsAt, gridSlotsOf, mySlotsOf } from './grid-slots';
 import {
   canGoToPreviousWeek,
   selectDay,
@@ -105,25 +105,88 @@ describe('createAttemptKeys', () => {
 });
 
 describe('gridSlotsOf', () => {
+  const mine = {
+    id: '5b1e6a4c-2d3f-4a5b-8c6d-7e8f9a0b1c2d',
+    ...slotAt(10),
+    status: 'CONFIRMED' as const,
+    notes: null,
+    createdAt: '2026-10-01T12:00:00.000Z',
+  };
+
   it('merges my confirmed appointments of the day with the free slots, in time order', () => {
-    const mine = {
-      id: '5b1e6a4c-2d3f-4a5b-8c6d-7e8f9a0b1c2d',
-      ...slotAt(10),
-      status: 'CONFIRMED' as const,
-      notes: null,
-      createdAt: '2026-10-01T12:00:00.000Z',
-    };
     const otherDay = { ...mine, id: 'other', startsAt: '2026-10-08T13:00:00.000Z' };
     const cancelled = { ...mine, id: 'cancelled', status: 'CANCELLED' as const };
 
     const slots = gridSlotsOf(
       [slotAt(9), slotAt(11)],
-      [mine, otherDay, cancelled],
+      mySlotsOf([mine, otherDay, cancelled]),
       '2026-10-07',
       SAO_PAULO,
     );
 
     expect(slots.map((slot) => slot.kind)).toEqual(['free', 'mine', 'free']);
     expect(slots[1]).toMatchObject({ kind: 'mine', appointmentId: mine.id });
+  });
+
+  it('marks every slot a longer appointment covers and drops the free slots it overlaps', () => {
+    const twoHours = { ...mine, endsAt: slotAt(12).startsAt };
+
+    const slots = gridSlotsOf(
+      [slotAt(9, 30), slotAt(10, 30), slotAt(12)],
+      mySlotsOf([twoHours]),
+      '2026-10-07',
+      SAO_PAULO,
+    );
+
+    expect(slots.map(({ kind, startsAt }) => [kind, startsAt])).toEqual([
+      ['free', slotAt(9, 30).startsAt],
+      ['mine', slotAt(10).startsAt],
+      ['mine', slotAt(10, 30).startsAt],
+      ['mine', slotAt(11).startsAt],
+      ['mine', slotAt(11, 30).startsAt],
+      ['free', slotAt(12).startsAt],
+    ]);
+    expect(slots[4]?.endsAt).toBe(slotAt(12).startsAt);
+  });
+
+  it('shows booked appointments of any client, winning over a free slot at the same time', () => {
+    const booked = {
+      ...slotAt(14),
+      kind: 'booked' as const,
+      appointmentId: mine.id,
+      clientName: 'Ana Souza',
+    };
+
+    const slots = gridSlotsOf([slotAt(13, 30), slotAt(14)], [booked], '2026-10-07', SAO_PAULO);
+
+    expect(slots).toEqual([{ ...slotAt(13, 30), kind: 'free' }, booked]);
+  });
+});
+
+describe('durationLimitsAt', () => {
+  const free = (localHour: number, minute = 0) => ({
+    ...slotAt(localHour, minute),
+    kind: 'free' as const,
+  });
+
+  it('extends over the consecutive free slots, stopping at a gap', () => {
+    const slots = [free(10), free(10, 30), free(11), free(12)];
+
+    expect(durationLimitsAt(slots, slotAt(10))).toEqual({ slotMinutes: 30, maxMinutes: 90 });
+    expect(durationLimitsAt(slots, slotAt(12))).toEqual({ slotMinutes: 30, maxMinutes: 30 });
+  });
+
+  it('stops at an occupied slot', () => {
+    const mine = { ...slotAt(10, 30), kind: 'mine' as const, appointmentId: 'a' };
+
+    expect(durationLimitsAt([free(10), mine, free(11)], slotAt(10)).maxMinutes).toBe(30);
+  });
+
+  it('caps the duration at the longest appointment allowed', () => {
+    const day = Array.from({ length: 10 }, (_, index) =>
+      free(8 + Math.floor(index / 2), (index % 2) * 30),
+    );
+
+    expect(durationLimitsAt(day, slotAt(8)).maxMinutes).toBe(180);
   });
 });
