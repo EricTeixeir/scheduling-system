@@ -1,3 +1,4 @@
+import 'sonner/dist/styles.css';
 import { Toaster as SonnerToaster } from 'sonner';
 
 import { useTheme } from '@/lib/theme/theme-context';
