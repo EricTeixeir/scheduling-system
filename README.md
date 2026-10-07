@@ -36,7 +36,7 @@ Com a stack no ar, em outro terminal:
 npm run demo:seed
 ```
 
-Cria 6 clientes fictícios (`*@demo.test`, com senhas aleatórias: servem só para popular a agenda) e agendamentos nos últimos 30 e nos próximos 14 dias, com status variados e o histórico correspondente. É idempotente: se os clientes de demonstração já têm agendamentos, não faz nada. Roda dentro do container `migrate`, então não precisa de Node instalado no host.
+Cria 6 clientes fictícios (`*@demo.test`, com senhas aleatórias: servem só para popular a agenda) e agendamentos nos últimos 30 e nos próximos 14 dias, com status variados e o histórico correspondente. É idempotente: se os clientes de demonstração já têm agendamentos, não faz nada. O script roda dentro do container `migrate`. Sem Node no host, use o comando equivalente: `docker compose run --rm migrate npx --no tsx prisma/seed-demo.ts`.
 
 ### Expediente semeado
 
