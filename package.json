@@ -32,7 +32,8 @@
     "prepare": "husky",
     "dev:db": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait db",
     "dev:api": "npm run db:migrate:deploy -w @scheduling/api && npm run db:seed -w @scheduling/api && npm run dev -w @scheduling/api",
-    "dev:web": "npm run dev -w @scheduling/web"
+    "dev:web": "npm run dev -w @scheduling/web",
+    "demo:seed": "docker compose run --rm migrate npx --no tsx prisma/seed-demo.ts"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs}": [
