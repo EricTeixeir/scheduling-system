@@ -14,6 +14,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0
 const SUMMARY = 'GET /admin/appointments/summary';
 const BOOK = 'POST /admin/appointments';
 const SEARCH = 'GET /admin/clients?q=mar';
+const CONFIRMED_TODAY = `GET /admin/appointments?page=1&pageSize=50&status=CONFIRMED&from=${TODAY}&to=${TODAY}`;
 
 type Handler = () => Response | Promise<Response>;
 
@@ -63,6 +64,10 @@ function booked(client: ClientSummary, slot: Slot): AdminAppointment {
   };
 }
 
+function confirmedPage(items: readonly AdminAppointment[]): Handler {
+  return () => jsonResponse({ items, page: 1, pageSize: 50, total: items.length });
+}
+
 function setup(routes: Record<string, Handler | Handler[]>) {
   const user = userEvent.setup();
   const week: Record<string, Handler> = {};
@@ -73,6 +78,7 @@ function setup(routes: Record<string, Handler | Handler[]>) {
     'GET /auth/me': () => jsonResponse(ADMIN_USER),
     [SUMMARY]: summary(0),
     [SEARCH]: () => jsonResponse({ items: [maria, mariana] }),
+    [CONFIRMED_TODAY]: confirmedPage([]),
     ...week,
     ...routes,
   });
@@ -124,6 +130,30 @@ describe('admin booking for a client', () => {
     expect(router.state.location.search).toBe('?visao=agendados');
   });
 
+  it('sends the chosen duration when booking several slots for a client', async () => {
+    const slot = slotOn(TODAY, '10:00');
+    const { user, callsTo } = setup({
+      [`GET /availability?date=${TODAY}`]: availability(TODAY, ['10:00', '10:30', '14:00']),
+      [BOOK]: () =>
+        jsonResponse(booked(mariana, { ...slot, endsAt: slotOn(TODAY, '11:00').startsAt }), 201),
+    });
+
+    const dialog = await openSlot(user, '10:00');
+    await pickSecondClient(user, dialog);
+    within(dialog).getByRole('slider', { name: 'Duração' }).focus();
+    await user.keyboard('{End}');
+    expect(within(dialog).getByText('10:00 – 11:00 · 1h')).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmar agendamento' }));
+
+    expect(await screen.findByText('Agendado para Mariana Souza')).toBeVisible();
+    const [booking] = callsTo('POST', '/admin/appointments');
+    expect(booking?.body).toEqual({
+      clientId: mariana.id,
+      startsAt: slot.startsAt,
+      durationMinutes: 60,
+    });
+  });
+
   it('asks for a client before booking', async () => {
     const { user, callsTo } = setup({});
 
@@ -164,5 +194,29 @@ describe('admin booking for a client', () => {
       expect(screen.queryByRole('button', { name: '14:00' })).not.toBeInTheDocument();
     });
     expect(callsTo('GET', `/availability?date=${TODAY}`)).toHaveLength(2);
+  });
+});
+
+describe('admin grid of the day', () => {
+  it('shows the confirmed appointments of any client and opens their history', async () => {
+    const appointment = booked(maria, slotOn(TODAY, '11:00'));
+    const { user } = setup({
+      [CONFIRMED_TODAY]: confirmedPage([appointment]),
+      [`GET /admin/appointments/${appointment.id}/history`]: () => jsonResponse({ items: [] }),
+    });
+
+    const cell = await screen.findByRole('button', {
+      name: '11:00, agendado por Maria Silva. Ver histórico',
+    });
+    expect(within(cell).getByText('Maria')).toBeVisible();
+    expect(screen.getByText('Horários agendados')).toBeVisible();
+    const times = screen.getAllByRole('button', { name: /^\d{2}:\d{2}/ });
+    expect(times.map((button) => button.textContent)).toEqual(['10:00', '11:00Maria', '14:00']);
+
+    await user.click(cell);
+
+    const sheet = await screen.findByRole('dialog', { name: 'Histórico' });
+    expect(within(sheet).getByText(/Maria Silva/)).toBeVisible();
+    expect(await within(sheet).findByText('Nenhum evento registrado')).toBeVisible();
   });
 });
