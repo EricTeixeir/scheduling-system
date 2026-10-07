@@ -3,14 +3,12 @@ import { useEffect, useRef } from 'react';
 
 import type { Rgb255 } from './css-color';
 
-const DOT_RADIUS = 0.75;
+const DOT_RADIUS = 1.1;
 const DOT_STEP = 15.5;
 const CURSOR_RADIUS = 500;
 const BULGE_STRENGTH = 67;
-const GLOW_RADIUS = 160;
-const ACCENT_ALPHA = 0.3;
-const BASE_ALPHA = 0.08;
-const GLOW_ALPHA = 0.18;
+const ACCENT_ALPHA = 0.55;
+const BASE_ALPHA = 0.3;
 const SPEED_SAMPLE_MS = 20;
 const REST_DISTANCE = 0.05;
 
@@ -83,25 +81,11 @@ function moveDots(dots: readonly Dot[], mouse: Mouse, engagement: number): boole
 function drawField(
   context: CanvasRenderingContext2D,
   dots: readonly Dot[],
-  mouse: Mouse,
-  glow: number,
   { accent, base }: DotFieldColors,
   width: number,
   height: number,
 ) {
   context.clearRect(0, 0, width, height);
-  if (glow > 0.01) {
-    const halo = context.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, GLOW_RADIUS);
-    halo.addColorStop(0, rgba(accent, GLOW_ALPHA * glow));
-    halo.addColorStop(1, rgba(accent, 0));
-    context.fillStyle = halo;
-    context.fillRect(
-      mouse.x - GLOW_RADIUS,
-      mouse.y - GLOW_RADIUS,
-      GLOW_RADIUS * 2,
-      GLOW_RADIUS * 2,
-    );
-  }
   const gradient = context.createLinearGradient(0, 0, width, height);
   gradient.addColorStop(0, rgba(accent, ACCENT_ALPHA));
   gradient.addColorStop(1, rgba(base, BASE_ALPHA));
@@ -132,17 +116,14 @@ export function DotField({ readColors }: DotFieldProps) {
     let height = 0;
     const mouse: Mouse = { x: -9999, y: -9999, prevX: -9999, prevY: -9999, speed: 0 };
     let engagement = 0;
-    let glow = 0;
     let frame = 0;
 
     const render = () => {
       engagement += (Math.min(mouse.speed / 5, 1) - engagement) * 0.06;
       if (engagement < 0.001) engagement = 0;
-      glow += (engagement - glow) * 0.08;
-      if (glow < 0.001) glow = 0;
       const moving = moveDots(dots, mouse, engagement);
-      drawField(context, dots, mouse, glow, colors, width, height);
-      frame = moving || engagement > 0 || glow > 0 ? requestAnimationFrame(render) : 0;
+      drawField(context, dots, colors, width, height);
+      frame = moving || engagement > 0 ? requestAnimationFrame(render) : 0;
     };
     const wake = () => {
       if (frame === 0) frame = requestAnimationFrame(render);
@@ -155,7 +136,7 @@ export function DotField({ readColors }: DotFieldProps) {
       canvas.height = height * ratio;
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
       dots = buildDots(width, height);
-      drawField(context, dots, mouse, glow, colors, width, height);
+      drawField(context, dots, colors, width, height);
     };
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
