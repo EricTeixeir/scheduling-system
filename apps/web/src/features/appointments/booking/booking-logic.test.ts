@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createAttemptKeys } from './attempt-keys';
 import { groupSlotsByPeriod } from './day-periods';
-import { gridSlotsOf, mySlotsOf } from './grid-slots';
+import { durationLimitsAt, gridSlotsOf, mySlotsOf } from './grid-slots';
 import {
   canGoToPreviousWeek,
   selectDay,
@@ -160,5 +160,33 @@ describe('gridSlotsOf', () => {
     const slots = gridSlotsOf([slotAt(13, 30), slotAt(14)], [booked], '2026-10-07', SAO_PAULO);
 
     expect(slots).toEqual([{ ...slotAt(13, 30), kind: 'free' }, booked]);
+  });
+});
+
+describe('durationLimitsAt', () => {
+  const free = (localHour: number, minute = 0) => ({
+    ...slotAt(localHour, minute),
+    kind: 'free' as const,
+  });
+
+  it('extends over the consecutive free slots, stopping at a gap', () => {
+    const slots = [free(10), free(10, 30), free(11), free(12)];
+
+    expect(durationLimitsAt(slots, slotAt(10))).toEqual({ slotMinutes: 30, maxMinutes: 90 });
+    expect(durationLimitsAt(slots, slotAt(12))).toEqual({ slotMinutes: 30, maxMinutes: 30 });
+  });
+
+  it('stops at an occupied slot', () => {
+    const mine = { ...slotAt(10, 30), kind: 'mine' as const, appointmentId: 'a' };
+
+    expect(durationLimitsAt([free(10), mine, free(11)], slotAt(10)).maxMinutes).toBe(30);
+  });
+
+  it('caps the duration at the longest appointment allowed', () => {
+    const day = Array.from({ length: 10 }, (_, index) =>
+      free(8 + Math.floor(index / 2), (index % 2) * 30),
+    );
+
+    expect(durationLimitsAt(day, slotAt(8)).maxMinutes).toBe(180);
   });
 });

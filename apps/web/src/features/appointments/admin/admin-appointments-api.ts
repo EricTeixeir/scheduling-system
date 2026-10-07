@@ -27,6 +27,7 @@ export interface BookForClientRequest {
   readonly clientId: string;
   readonly startsAt: string;
   readonly notes: string;
+  readonly durationMinutes?: number;
   readonly idempotencyKey: string;
 }
 

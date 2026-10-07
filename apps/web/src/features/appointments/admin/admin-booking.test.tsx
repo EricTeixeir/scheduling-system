@@ -130,6 +130,30 @@ describe('admin booking for a client', () => {
     expect(router.state.location.search).toBe('?visao=agendados');
   });
 
+  it('sends the chosen duration when booking several slots for a client', async () => {
+    const slot = slotOn(TODAY, '10:00');
+    const { user, callsTo } = setup({
+      [`GET /availability?date=${TODAY}`]: availability(TODAY, ['10:00', '10:30', '14:00']),
+      [BOOK]: () =>
+        jsonResponse(booked(mariana, { ...slot, endsAt: slotOn(TODAY, '11:00').startsAt }), 201),
+    });
+
+    const dialog = await openSlot(user, '10:00');
+    await pickSecondClient(user, dialog);
+    within(dialog).getByRole('slider', { name: 'Duração' }).focus();
+    await user.keyboard('{End}');
+    expect(within(dialog).getByText('10:00 – 11:00 · 1h')).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Confirmar agendamento' }));
+
+    expect(await screen.findByText('Agendado para Mariana Souza')).toBeVisible();
+    const [booking] = callsTo('POST', '/admin/appointments');
+    expect(booking?.body).toEqual({
+      clientId: mariana.id,
+      startsAt: slot.startsAt,
+      durationMinutes: 60,
+    });
+  });
+
   it('asks for a client before booking', async () => {
     const { user, callsTo } = setup({});
 

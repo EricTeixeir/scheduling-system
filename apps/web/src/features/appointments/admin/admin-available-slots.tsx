@@ -1,4 +1,4 @@
-import type { AdminAppointment, ClientSummary, Slot } from '@scheduling/shared';
+import type { AdminAppointment, ClientSummary } from '@scheduling/shared';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -8,6 +8,14 @@ import { useClock } from '@/lib/time/clock';
 import { localDateOf, type LocalDate } from '@/lib/time/local-date';
 
 import { createAttemptKeys } from '../booking/attempt-keys';
+import {
+  bookedRangeOf,
+  chooseSlot,
+  durationFieldOf,
+  withMinutes,
+  type ChosenSlot,
+  type SlotChoice,
+} from '../booking/chosen-slot';
 import type { OccupiedSlot } from '../booking/day-periods';
 import { SlotPicker, type OccupiedSlots } from '../booking/slot-picker';
 import { appointmentWhen } from '../shared/appointment-format';
@@ -15,18 +23,18 @@ import { AppointmentHistorySheet } from './appointment-history-sheet';
 import { BookForClientConfirmation } from './book-for-client-confirmation';
 import { useBookForClient, useConfirmedAppointmentsOn } from './use-admin-appointments';
 
-interface ChosenSlot {
-  readonly slot: Slot;
-  readonly timeZone: string;
-}
-
 function useBookForClientFlow(onShowScheduled: () => void) {
   const booking = useBookForClient();
   const [attemptKeys] = useState(() => createAttemptKeys(() => crypto.randomUUID()));
   const [chosen, setChosen] = useState<ChosenSlot | null>(null);
 
-  const confirm = ({ slot, timeZone }: ChosenSlot, client: ClientSummary, notes: string) => {
-    const request = { clientId: client.id, startsAt: slot.startsAt, notes };
+  const confirm = (chosen: ChosenSlot, client: ClientSummary, notes: string) => {
+    const request = {
+      clientId: client.id,
+      startsAt: chosen.slot.startsAt,
+      notes,
+      ...durationFieldOf(chosen),
+    };
     const idempotencyKey = attemptKeys.keyFor(JSON.stringify(request));
     booking.mutate(
       { ...request, idempotencyKey },
@@ -34,7 +42,7 @@ function useBookForClientFlow(onShowScheduled: () => void) {
         onSuccess: () => {
           setChosen(null);
           toast.success(`Agendado para ${client.name}`, {
-            description: appointmentWhen(slot, timeZone),
+            description: appointmentWhen(bookedRangeOf(chosen), chosen.timeZone),
             action: { label: 'Ver agendados', onClick: onShowScheduled },
           });
         },
@@ -47,9 +55,12 @@ function useBookForClientFlow(onShowScheduled: () => void) {
 
   return {
     chosen,
-    choose: (slot: Slot, timeZone: string) => {
+    choose: (choice: SlotChoice) => {
       attemptKeys.reset();
-      setChosen({ slot, timeZone });
+      setChosen(chooseSlot(choice));
+    },
+    changeMinutes: (minutes: number) => {
+      setChosen((current) => (current === null ? null : withMinutes(current, minutes)));
     },
     confirm,
     dismiss: () => {
@@ -106,7 +117,7 @@ export function AdminAvailableSlots({ onShowScheduled }: AdminAvailableSlotsProp
       <SlotPicker
         today={today}
         occupied={booked.occupied}
-        selectedStartsAt={chosen?.slot.startsAt ?? null}
+        selected={chosen === null ? null : bookedRangeOf(chosen)}
         onSelectSlot={flow.choose}
         onDayChange={setDay}
         onOpenBooked={(appointmentId) => {
@@ -122,9 +133,9 @@ export function AdminAvailableSlots({ onShowScheduled }: AdminAvailableSlotsProp
       {chosen === null ? null : (
         <BookForClientConfirmation
           key={chosen.slot.startsAt}
-          slot={chosen.slot}
-          timeZone={chosen.timeZone}
+          chosen={chosen}
           pending={flow.pending}
+          onMinutesChange={flow.changeMinutes}
           onDismiss={flow.dismiss}
           onConfirm={(client, notes) => {
             flow.confirm(chosen, client, notes);

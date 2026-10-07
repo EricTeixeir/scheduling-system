@@ -105,6 +105,11 @@ export function toAppointmentDto(record: AppointmentRecord): Appointment {
   };
 }
 
+interface RequestedRange {
+  readonly startsAt: Date;
+  readonly durationMinutes: number | undefined;
+}
+
 function idempotencyCutoff(now: Date): Date {
   return addMinutes(now, -IDEMPOTENCY_KEY_TTL_HOURS * 60);
 }
@@ -129,11 +134,14 @@ export function createBooking({
     return { ...stored.response, replayed: true };
   }
 
-  async function resolveBookableSlot(startsAt: Date, now: Date): Promise<TimeRange> {
+  async function resolveBookableSlot(
+    { startsAt, durationMinutes }: RequestedRange,
+    now: Date,
+  ): Promise<TimeRange> {
     const { hours, isClosedDate, blocks } = await schedule.findDaySchedule(
       localDateOf(startsAt, timeZone),
     );
-    const slot = resolveRequestedSlot({ startsAt, hours, isClosedDate, timeZone });
+    const slot = resolveRequestedSlot({ startsAt, durationMinutes, hours, isClosedDate, timeZone });
     if (!slot.ok) throw new BusinessRuleError(slot.reason);
     const window = checkBookingWindow(slot.value.startsAt, now, policy);
     if (!window.ok) throw new BusinessRuleError(window.reason);
@@ -151,7 +159,10 @@ export function createBooking({
     const replay = await storedReplay(actor.id, idempotencyKey, requestHash, now);
     if (replay !== undefined) return replay;
 
-    const slot = await resolveBookableSlot(new Date(input.startsAt), now);
+    const slot = await resolveBookableSlot(
+      { startsAt: new Date(input.startsAt), durationMinutes: input.durationMinutes },
+      now,
+    );
     const appointment: AppointmentRecord = {
       id: randomUUID(),
       userId: ownerId,

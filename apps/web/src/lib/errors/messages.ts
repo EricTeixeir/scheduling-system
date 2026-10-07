@@ -18,6 +18,7 @@ const CODE_MESSAGES: Partial<Record<ErrorCode, string>> = {
   CLOSED_DATE: 'Não há atendimento nesta data. Escolha outro dia.',
   OUTSIDE_BUSINESS_HOURS: 'Este horário está fora do horário de atendimento.',
   MISALIGNED: 'Escolha um dos horários disponíveis na grade.',
+  INVALID_DURATION: 'Essa duração não cabe nesse horário. Escolha uma duração menor.',
   CANCEL_DEADLINE_PASSED: 'O prazo para cancelar este agendamento já terminou.',
   INVALID_TRANSITION: 'Este agendamento já não está confirmado, então o status não pode mudar.',
   ACTOR_NOT_ALLOWED: 'Você não tem permissão para esta ação.',

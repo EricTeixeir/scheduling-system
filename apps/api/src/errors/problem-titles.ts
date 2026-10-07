@@ -12,6 +12,7 @@ const PROBLEM_TITLES: Readonly<Record<ErrorCode, string>> = {
   CLOSED_DATE: 'Data sem atendimento',
   OUTSIDE_BUSINESS_HOURS: 'Fora do horário de atendimento',
   MISALIGNED: 'Horário fora da grade de atendimento',
+  INVALID_DURATION: 'Duração inválida para este horário',
   SLOT_TAKEN: 'Horário indisponível',
   SLOT_BLOCKED: 'Horário indisponível',
   BLOCK_CONFLICT: 'O bloqueio coincide com agendamentos confirmados',
