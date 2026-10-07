@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
-import { appointmentNotesSchema } from '../appointments/create-appointment';
+import {
+  appointmentDurationSchema,
+  appointmentNotesSchema,
+  presentBookingFields,
+  type OptionalBookingFields,
+} from '../appointments/create-appointment';
 import { isoDateTimeSchema } from '../common/iso-date-time';
 import { uuidSchema } from '../common/uuid';
 
@@ -9,9 +14,19 @@ export const adminCreateAppointmentSchema = z
     clientId: uuidSchema,
     startsAt: isoDateTimeSchema,
     notes: appointmentNotesSchema,
+    durationMinutes: appointmentDurationSchema,
   })
-  .transform(({ notes, ...rest }): { clientId: string; startsAt: string; notes?: string } =>
-    notes ? { ...rest, notes } : rest,
+  .transform(
+    ({
+      clientId,
+      startsAt,
+      notes,
+      durationMinutes,
+    }): { clientId: string; startsAt: string } & OptionalBookingFields => ({
+      clientId,
+      startsAt,
+      ...presentBookingFields(notes, durationMinutes),
+    }),
   );
 
 export type AdminCreateAppointmentInput = z.input<typeof adminCreateAppointmentSchema>;

@@ -68,6 +68,7 @@ export {
 } from './appointments/appointment-history';
 export {
   createAppointmentSchema,
+  MAX_APPOINTMENT_MINUTES,
   NOTES_MAX_LENGTH,
   type CreateAppointmentInput,
   type CreateAppointmentOutput,

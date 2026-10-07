@@ -19,7 +19,14 @@ export const DAY_PERIODS: readonly DayPeriod[] = [
 
 export type GridSlot =
   | (Slot & { readonly kind: 'free' })
-  | (Slot & { readonly kind: 'mine'; readonly appointmentId: string });
+  | (Slot & { readonly kind: 'mine'; readonly appointmentId: string })
+  | (Slot & {
+      readonly kind: 'booked';
+      readonly appointmentId: string;
+      readonly clientName: string;
+    });
+
+export type OccupiedSlot = Exclude<GridSlot, { readonly kind: 'free' }>;
 
 export interface SlotGroup<T extends Slot = GridSlot> {
   readonly period: DayPeriod;

@@ -55,6 +55,20 @@ describe('createAppointmentSchema', () => {
     );
   });
 
+  it('keeps a whole-minute duration up to the maximum and omits an absent one', () => {
+    expect(createAppointmentSchema.parse({ startsAt: STARTS_AT, durationMinutes: 180 })).toEqual({
+      startsAt: STARTS_AT,
+      durationMinutes: 180,
+    });
+    expect('durationMinutes' in createAppointmentSchema.parse({ startsAt: STARTS_AT })).toBe(false);
+  });
+
+  it.each([0, -30, 30.5, 181, '60', null])('rejects the duration %j', (durationMinutes) => {
+    expect(
+      createAppointmentSchema.safeParse({ startsAt: STARTS_AT, durationMinutes }).success,
+    ).toBe(false);
+  });
+
   it.each([
     ['endsAt', '2026-10-07T14:30:00-03:00'],
     ['isAdmin', true],

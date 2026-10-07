@@ -1,4 +1,4 @@
-import type { Appointment, Slot } from '@scheduling/shared';
+import type { Appointment } from '@scheduling/shared';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
@@ -13,13 +13,17 @@ import { useMyAppointments } from '../my-appointments/use-my-appointments';
 import { appointmentWhen } from '../shared/appointment-format';
 import { createAttemptKeys } from './attempt-keys';
 import { BookingConfirmation } from './booking-confirmation';
+import {
+  bookedRangeOf,
+  chooseSlot,
+  durationFieldOf,
+  withMinutes,
+  type ChosenSlot,
+  type SlotChoice,
+} from './chosen-slot';
+import { mySlotsOf } from './grid-slots';
 import { SlotPicker } from './slot-picker';
 import { useBookAppointment } from './use-booking';
-
-interface ChosenSlot {
-  readonly slot: Slot;
-  readonly timeZone: string;
-}
 
 function useMyUpcomingAppointments(): readonly Appointment[] {
   const upcoming = useMyAppointments('upcoming');
@@ -32,13 +36,13 @@ function useBookingFlow() {
   const [attemptKeys] = useState(() => createAttemptKeys(() => crypto.randomUUID()));
   const [chosen, setChosen] = useState<ChosenSlot | null>(null);
 
-  const choose = (slot: Slot, timeZone: string) => {
+  const choose = (choice: SlotChoice) => {
     attemptKeys.reset();
-    setChosen({ slot, timeZone });
+    setChosen(chooseSlot(choice));
   };
 
-  const confirm = ({ slot, timeZone }: ChosenSlot, notes: string) => {
-    const request = { startsAt: slot.startsAt, notes };
+  const confirm = (chosen: ChosenSlot, notes: string) => {
+    const request = { startsAt: chosen.slot.startsAt, notes, ...durationFieldOf(chosen) };
     const idempotencyKey = attemptKeys.keyFor(JSON.stringify(request));
     booking.mutate(
       { ...request, idempotencyKey },
@@ -46,7 +50,7 @@ function useBookingFlow() {
         onSuccess: (appointment) => {
           setChosen(null);
           toast.success('Agendamento confirmado', {
-            description: appointmentWhen(slot, timeZone),
+            description: appointmentWhen(bookedRangeOf(chosen), chosen.timeZone),
             action: {
               label: 'Ver meus agendamentos',
               onClick: () => {
@@ -67,6 +71,9 @@ function useBookingFlow() {
     choose,
     openMine: (appointmentId: string) => {
       void navigate(myAppointmentsHighlighting(appointmentId));
+    },
+    changeMinutes: (minutes: number) => {
+      setChosen((current) => (current === null ? null : withMinutes(current, minutes)));
     },
     confirm,
     dismiss: () => {
@@ -92,17 +99,17 @@ export function BookPage() {
       </header>
       <SlotPicker
         today={localDateOf(clock.now(), BUSINESS_TIME_ZONE)}
-        myAppointments={myAppointments}
-        selectedStartsAt={chosen?.slot.startsAt ?? null}
+        occupied={{ status: 'ready', slots: mySlotsOf(myAppointments) }}
+        selected={chosen === null ? null : bookedRangeOf(chosen)}
         onSelectSlot={flow.choose}
         onOpenMine={flow.openMine}
       />
       {chosen === null ? null : (
         <BookingConfirmation
           key={chosen.slot.startsAt}
-          slot={chosen.slot}
-          timeZone={chosen.timeZone}
+          chosen={chosen}
           pending={flow.pending}
+          onMinutesChange={flow.changeMinutes}
           onDismiss={flow.dismiss}
           onConfirm={(notes) => {
             flow.confirm(chosen, notes);

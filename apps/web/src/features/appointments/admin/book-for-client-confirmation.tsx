@@ -1,21 +1,22 @@
-import type { ClientSummary, Slot } from '@scheduling/shared';
+import type { ClientSummary } from '@scheduling/shared';
 import { useState } from 'react';
 
 import { BookingConfirmation } from '../booking/booking-confirmation';
+import type { ChosenSlot } from '../booking/chosen-slot';
 import { ClientCombobox } from './client-combobox';
 
 interface BookForClientConfirmationProps {
-  readonly slot: Slot;
-  readonly timeZone: string;
+  readonly chosen: ChosenSlot;
   readonly pending: boolean;
+  readonly onMinutesChange: (minutes: number) => void;
   readonly onConfirm: (client: ClientSummary, notes: string) => void;
   readonly onDismiss: () => void;
 }
 
 export function BookForClientConfirmation({
-  slot,
-  timeZone,
+  chosen,
   pending,
+  onMinutesChange,
   onConfirm,
   onDismiss,
 }: BookForClientConfirmationProps) {
@@ -24,9 +25,9 @@ export function BookForClientConfirmation({
 
   return (
     <BookingConfirmation
-      slot={slot}
-      timeZone={timeZone}
+      chosen={chosen}
       pending={pending}
+      onMinutesChange={onMinutesChange}
       onDismiss={onDismiss}
       title="Agendar para cliente"
       description="Escolha o cliente e revise o dia e o horário."

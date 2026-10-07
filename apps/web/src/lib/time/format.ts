@@ -77,3 +77,11 @@ export function hourOf(instant: Date | string, timeZone: string): number {
     ),
   );
 }
+
+export function formatDuration(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${String(minutes)} min`;
+  if (minutes === 0) return `${String(hours)}h`;
+  return `${String(hours)}h${String(minutes).padStart(2, '0')}`;
+}
