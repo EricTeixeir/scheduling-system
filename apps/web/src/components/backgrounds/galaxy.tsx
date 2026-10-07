@@ -32,7 +32,7 @@ varying vec2 vUv;
 #define GLOW 0.3
 #define TWINKLE 0.3
 #define ROTATION_SPEED 0.08
-#define DENSITY 2.0
+#define DENSITY 3.0
 #define REPULSION 0.1
 
 float Hash21(vec2 p) {
