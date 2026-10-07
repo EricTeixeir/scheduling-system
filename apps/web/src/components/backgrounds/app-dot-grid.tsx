@@ -6,7 +6,7 @@ import { DotGrid, type DotColors } from './dot-grid';
 const FALLBACK_BASE: Rgb255 = [128, 128, 128];
 
 function themeDotColors(): DotColors {
-  const base = cssColorAsRgb('--border') ?? FALLBACK_BASE;
+  const base = cssColorAsRgb('--muted-foreground') ?? FALLBACK_BASE;
   return { base, active: cssColorAsRgb('--primary') ?? base };
 }
 

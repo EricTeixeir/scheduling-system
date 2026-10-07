@@ -14,6 +14,7 @@ const STIFFNESS = 60;
 const DAMPING = 4.7;
 const REST_THRESHOLD = 0.05;
 const MAX_STEP_SECONDS = 1 / 30;
+const BASE_ALPHA = 0.12;
 
 interface Dot {
   readonly cx: number;
@@ -69,8 +70,8 @@ function stepSprings(dots: readonly Dot[], seconds: number): boolean {
   return moving;
 }
 
-function rgb([red, green, blue]: Rgb255): string {
-  return `rgb(${String(red)},${String(green)},${String(blue)})`;
+function rgba([red, green, blue]: Rgb255, alpha: number): string {
+  return `rgba(${String(red)},${String(green)},${String(blue)},${String(alpha)})`;
 }
 
 function mix(from: Rgb255, to: Rgb255, amount: number): Rgb255 {
@@ -96,12 +97,15 @@ function drawDots(
     context.moveTo(dot.cx + dot.x + DOT_RADIUS, dot.cy + dot.y);
     context.arc(dot.cx + dot.x, dot.cy + dot.y, DOT_RADIUS, 0, Math.PI * 2);
   }
-  context.fillStyle = rgb(base);
+  context.fillStyle = rgba(base, BASE_ALPHA);
   context.fill();
   for (const { dot, closeness } of near) {
     context.beginPath();
     context.arc(dot.cx + dot.x, dot.cy + dot.y, DOT_RADIUS, 0, Math.PI * 2);
-    context.fillStyle = rgb(mix(base, active, closeness));
+    context.fillStyle = rgba(
+      mix(base, active, closeness),
+      BASE_ALPHA + (1 - BASE_ALPHA) * closeness,
+    );
     context.fill();
   }
 }
