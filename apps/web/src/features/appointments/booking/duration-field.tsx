@@ -15,7 +15,6 @@ interface DurationFieldProps {
 export function DurationField({ chosen, disabled, onMinutesChange }: DurationFieldProps) {
   const labelId = useId();
   const { slotMinutes, maxMinutes } = chosen.limits;
-  if (maxMinutes <= slotMinutes) return null;
   const summary = `${appointmentTimeRange(bookedRangeOf(chosen), chosen.timeZone)} · ${formatDuration(chosen.minutes)}`;
 
   return (
@@ -28,17 +27,24 @@ export function DurationField({ chosen, disabled, onMinutesChange }: DurationFie
           {summary}
         </output>
       </div>
-      <Slider
-        value={[chosen.minutes]}
-        min={slotMinutes}
-        max={maxMinutes}
-        step={slotMinutes}
-        disabled={disabled}
-        thumbProps={{ 'aria-labelledby': labelId, 'aria-valuetext': summary }}
-        onValueChange={([minutes]) => {
-          if (minutes !== undefined) onMinutesChange(minutes);
-        }}
-      />
+      {maxMinutes <= slotMinutes ? (
+        <p className="text-sm text-muted-foreground">
+          Só cabe {formatDuration(slotMinutes)} a partir deste horário: o seguinte já está ocupado
+          ou fora do expediente.
+        </p>
+      ) : (
+        <Slider
+          value={[chosen.minutes]}
+          min={slotMinutes}
+          max={maxMinutes}
+          step={slotMinutes}
+          disabled={disabled}
+          thumbProps={{ 'aria-labelledby': labelId, 'aria-valuetext': summary }}
+          onValueChange={([minutes]) => {
+            if (minutes !== undefined) onMinutesChange(minutes);
+          }}
+        />
+      )}
     </div>
   );
 }
