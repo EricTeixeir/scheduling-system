@@ -11,7 +11,8 @@
     "test:unit": "vitest run",
     "db:generate": "prisma generate",
     "db:migrate:deploy": "prisma migrate deploy",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:seed:demo": "tsx --env-file-if-exists=../../.env prisma/seed-demo.ts"
   },
   "dependencies": {
     "@date-fns/tz": "1.5.0",
